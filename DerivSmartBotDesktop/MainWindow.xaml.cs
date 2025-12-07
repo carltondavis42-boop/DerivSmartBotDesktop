@@ -107,14 +107,24 @@ namespace DerivSmartBotDesktop
                 // new DebugPingPongStrategy() // optional debug
             };
 
-            // 5) Create controller
+            // 5) Create AI helpers
+            var featureExtractor = new SimpleFeatureExtractor();
+            var tradeLogger = new CsvTradeDataLogger();
+            var strategySelector = new RuleBasedStrategySelector();
+
+            // 6) Create controller
             _controller = new SmartBotController(
                 riskManager,
                 strategies,
                 profileCfg.Rules,
-                _derivClient);
+                _derivClient,
+                regimeClassifier: null,
+                featureExtractor: featureExtractor,
+                tradeLogger: tradeLogger,
+                strategySelector: strategySelector);
 
-            // 6) Symbols to watch (primary + default list)
+
+            // 7) Symbols to watch (primary + default list)
             var watchList = new List<string>();
             if (!string.IsNullOrWhiteSpace(_settings.Symbol))
                 watchList.Add(_settings.Symbol.Trim());

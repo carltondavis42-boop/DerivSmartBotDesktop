@@ -968,6 +968,11 @@ namespace DerivSmartBotDesktop.Core
         private readonly DerivWebSocketClient _deriv;
         private readonly StrategyContext _context = new StrategyContext();
 
+        // NEW: optional AI/ML helpers
+        private readonly IFeatureExtractor? _featureExtractor;
+        private readonly ITradeDataLogger? _tradeLogger;
+        private readonly IStrategySelector? _strategySelector;
+
         private readonly Dictionary<string, StrategyStats> _strategyStats = new();
         private readonly List<TradeRecord> _tradeHistory = new();
         private readonly Dictionary<Guid, TradeRecord> _openTrades = new();
@@ -1013,13 +1018,20 @@ namespace DerivSmartBotDesktop.Core
             IEnumerable<ITradingStrategy> strategies,
             BotRules rules,
             DerivWebSocketClient deriv,
-            IMarketRegimeClassifier regimeClassifier = null)
+            IMarketRegimeClassifier? regimeClassifier = null,
+            IFeatureExtractor? featureExtractor = null,
+            ITradeDataLogger? tradeLogger = null,
+            IStrategySelector? strategySelector = null)
         {
-            _riskManager = riskManager;
-            _strategies = strategies.ToList();
-            _rules = rules;
-            _deriv = deriv;
+            _riskManager = riskManager ?? throw new ArgumentNullException(nameof(riskManager));
+            _strategies = strategies?.ToList() ?? throw new ArgumentNullException(nameof(strategies));
+            _rules = rules ?? throw new ArgumentNullException(nameof(rules));
+            _deriv = deriv ?? throw new ArgumentNullException(nameof(deriv));
+
             _regimeClassifier = regimeClassifier ?? new AiMarketRegimeClassifier();
+            _featureExtractor = featureExtractor ?? new SimpleFeatureExtractor();
+            _tradeLogger = tradeLogger;
+            _strategySelector = strategySelector;
 
             _deriv.TickReceived += OnTickReceived;
             _deriv.BalanceUpdated += OnBalanceUpdated;
@@ -1031,6 +1043,7 @@ namespace DerivSmartBotDesktop.Core
                     _strategyStats[s.Name] = new StrategyStats();
             }
         }
+
 
         public bool IsRunning => _running && !_autoPaused;
         public bool IsConnected => _deriv?.IsConnected ?? false;
@@ -1272,7 +1285,22 @@ namespace DerivSmartBotDesktop.Core
                 return;
             }
 
-            var ensemble = AIHelpers.EnsembleVote(decisions);
+            StrategyDecision ensemble;
+            if (_strategySelector != null && CurrentDiagnostics != null)
+            {
+                ensemble = _strategySelector.SelectBest(
+                    tick,
+                    _context,
+                    CurrentDiagnostics,
+                    _strategyStats,
+                    decisions);
+            }
+            else
+            {
+                // Fallback to the original ensemble voting logic
+                ensemble = AIHelpers.EnsembleVote(decisions);
+            }
+
             if (ensemble.Signal == TradeSignal.None || ensemble.Confidence < 0.6)
             {
                 SetSkipReason("LOW_CONFIDENCE",
@@ -1282,6 +1310,7 @@ namespace DerivSmartBotDesktop.Core
 
             var recentTrades = _tradeHistory.OrderByDescending(t => t.Time).Take(40).ToList();
             double expectedProfitScore = AIHelpers.EstimateExpectedProfitScore(ensemble, CurrentDiagnostics, recentTrades);
+
 
             if (expectedProfitScore <= 0.0)
             {
@@ -1549,6 +1578,33 @@ namespace DerivSmartBotDesktop.Core
 
                 record.Profit = profit;
                 _tradeHistory.Add(record);
+
+                // NEW: log trade with features for ML training
+                if (_tradeLogger != null && _featureExtractor != null && CurrentDiagnostics != null)
+                {
+                    var latestTick = _context.TickWindow.LastOrDefault();
+                    if (latestTick != null)
+                    {
+                        var features = _featureExtractor.Extract(
+                            _context,
+                            latestTick,
+                            CurrentDiagnostics,
+                            MarketHeatScore);
+
+                        var signal = record.Direction == "Buy"
+                            ? TradeSignal.Buy
+                            : TradeSignal.Sell;
+
+                        var decision = new StrategyDecision
+                        {
+                            StrategyName = strategyName,
+                            Signal = signal,
+                            Confidence = CurrentDiagnostics.RegimeScore ?? 0.0
+                        };
+
+                        _tradeLogger.Log(features, decision, record.Stake, profit);
+                    }
+                }
 
                 if (!_strategyStats.TryGetValue(strategyName, out var stats))
                 {
