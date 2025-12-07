@@ -7,6 +7,57 @@ namespace DerivSmartBotDesktop.Core
 {
     #region Basic Models
 
+    public interface ITradeDataLogger
+    {
+        void Log(TradeRecord record, MarketDiagnostics diag);
+    }
+
+    public sealed class CsvTradeDataLogger : ITradeDataLogger
+    {
+        private readonly string _folder;
+        private readonly object _sync = new object();
+
+        public CsvTradeDataLogger(string? folder = null)
+        {
+            _folder = folder ?? System.IO.Path.Combine(
+                AppDomain.CurrentDomain.BaseDirectory, "Data", "Trades");
+        }
+
+        public void Log(TradeRecord record, MarketDiagnostics diag)
+        {
+            lock (_sync)
+            {
+                System.IO.Directory.CreateDirectory(_folder);
+                string fileName = $"trades_{record.Time:yyyyMMdd}.csv";
+                string path = System.IO.Path.Combine(_folder, fileName);
+
+                bool writeHeader = !System.IO.File.Exists(path);
+                using var stream = new System.IO.FileStream(path, System.IO.FileMode.Append, System.IO.FileAccess.Write, System.IO.FileShare.Read);
+                using var writer = new System.IO.StreamWriter(stream);
+
+                if (writeHeader)
+                {
+                    writer.WriteLine("Time,Symbol,Strategy,Direction,Stake,Profit,Regime,Heat,Volatility,TrendSlope");
+                }
+
+                string line = string.Join(",",
+                    record.Time.ToString("o"),
+                    record.Symbol,
+                    record.StrategyName,
+                    record.Direction,
+                    record.Stake.ToString("G17", System.Globalization.CultureInfo.InvariantCulture),
+                    record.Profit.ToString("G17", System.Globalization.CultureInfo.InvariantCulture),
+                    diag?.Regime.ToString() ?? "Unknown",
+                    (diag != null ? AIHelpers.ComputeMarketHeatIndex(record.ContextSnapshot, diag).ToString("G17", System.Globalization.CultureInfo.InvariantCulture) : "0"),
+                    (diag?.Volatility ?? 0).ToString("G17", System.Globalization.CultureInfo.InvariantCulture),
+                    (diag?.TrendSlope ?? 0).ToString("G17", System.Globalization.CultureInfo.InvariantCulture));
+
+                writer.WriteLine(line);
+            }
+        }
+    }
+
+
     public enum TradeSignal
     {
         None = 0,
@@ -1018,19 +1069,15 @@ namespace DerivSmartBotDesktop.Core
             IEnumerable<ITradingStrategy> strategies,
             BotRules rules,
             DerivWebSocketClient deriv,
-            IMarketRegimeClassifier? regimeClassifier = null,
-            IFeatureExtractor? featureExtractor = null,
-            ITradeDataLogger? tradeLogger = null,
-            IStrategySelector? strategySelector = null)
+            IMarketRegimeClassifier regimeClassifier = null,
+            ITradeDataLogger tradeLogger = null)
         {
-            _riskManager = riskManager ?? throw new ArgumentNullException(nameof(riskManager));
-            _strategies = strategies?.ToList() ?? throw new ArgumentNullException(nameof(strategies));
-            _rules = rules ?? throw new ArgumentNullException(nameof(rules));
-            _deriv = deriv ?? throw new ArgumentNullException(nameof(deriv));
-
+            _riskManager = riskManager;
+            _strategies = strategies.ToList();
+            _rules = rules;
+            _deriv = deriv;
             _regimeClassifier = regimeClassifier ?? new AiMarketRegimeClassifier();
-            _featureExtractor = featureExtractor ?? new SimpleFeatureExtractor();
-            _tradeLogger = tradeLogger;
+            _tradeLogger = tradeLogger ?? new CsvTradeDataLogger();
             _strategySelector = strategySelector;
 
             _deriv.TickReceived += OnTickReceived;
@@ -1534,9 +1581,41 @@ namespace DerivSmartBotDesktop.Core
         private async void ExecuteTrade(Tick tick, StrategyDecision decision, DateTime now)
         {
             double baseStake = _riskManager.ComputeStake(_balance);
-            double stake = ComputeDynamicStake(baseStake);
+            if (baseStake <= 0)
+            {
+                SetSkipReason("NO_STAKE", "Risk manager returned zero stake.");
+                return;
+            }
 
-            if (stake <= 0) return;
+            double dynamicFactor = 1.0;
+
+            // boost a bit when heat is in a good zone
+            if (MarketHeatScore >= 55 && MarketHeatScore <= 80)
+                dynamicFactor *= 1.1;
+            else if (MarketHeatScore < 40 || MarketHeatScore > 90)
+                dynamicFactor *= 0.8;
+
+            // use strategy stats if available
+            if (_strategyStats.TryGetValue(ensemble.StrategyName ?? string.Empty, out var stats) &&
+                stats.TotalTrades >= 20)
+            {
+                if (stats.NetPL < 0)
+                    dynamicFactor *= 0.8;
+                if (stats.WinRate < 45)
+                    dynamicFactor *= 0.85;
+                else if (stats.WinRate > 60)
+                    dynamicFactor *= 1.1;
+            }
+
+            double stake = baseStake * dynamicFactor;
+            stake = _riskManager.ClampStake(stake); // you can add this helper if you want
+
+            if (stake <= 0)
+            {
+                SetSkipReason("NO_STAKE", "Dynamic stake calculation returned zero.");
+                return;
+            }
+
 
             _lastTradeTime = now;
             _tradeTimes.Add(now);
@@ -1578,6 +1657,19 @@ namespace DerivSmartBotDesktop.Core
 
                 record.Profit = profit;
                 _tradeHistory.Add(record);
+
+                // New: log to CSV for AI/ML training later
+                try
+                {
+                    if (CurrentDiagnostics != null)
+                    {
+                        _tradeLogger?.Log(record, CurrentDiagnostics);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    RaiseBotEvent($"Trade logger error: {ex.Message}");
+                }
 
                 // NEW: log trade with features for ML training
                 if (_tradeLogger != null && _featureExtractor != null && CurrentDiagnostics != null)
