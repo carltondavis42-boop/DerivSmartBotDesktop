@@ -31,17 +31,6 @@ namespace DerivSmartBotDesktop.Core
         public double Profit { get; set; }
     }
 
-    // 🆕 Non-trade explanation model
-    public class NonTradeRecord
-    {
-        public DateTime Time { get; set; }
-        public string Symbol { get; set; }
-        public string Reason { get; set; }   // e.g. "RiskGate", "ExpectedProfitFilter", "ConditionsFilter", "Cooldown", etc.
-        public string Detail { get; set; }   // human readable explanation
-        public double? Heat { get; set; }    // MarketHeatScore at the time
-        public MarketRegime? Regime { get; set; } // Market regime at the time
-    }
-
     public class StrategyStats
     {
         public int Wins { get; set; }
@@ -953,7 +942,7 @@ namespace DerivSmartBotDesktop.Core
 
     #endregion
 
-    #region SmartBotController (with Non-Trade Logging & Auto Symbol)
+    #region SmartBotController
 
     public enum AutoSymbolMode
     {
@@ -977,21 +966,7 @@ namespace DerivSmartBotDesktop.Core
         private readonly List<ITradingStrategy> _strategies;
         private BotRules _rules;
         private readonly DerivWebSocketClient _deriv;
-
-        // Per-symbol contexts
-        private readonly Dictionary<string, StrategyContext> _contexts = new();
-        private readonly Dictionary<string, MarketDiagnostics> _symbolDiagnostics = new();
-        private readonly Dictionary<string, double> _symbolHeatScores = new();
-
-        private readonly List<string> _symbolsToWatch = new();
-        private string _activeSymbol;
-        private AutoSymbolMode _autoSymbolMode = AutoSymbolMode.Auto;
-
-        // Auto symbol selection timing
-        private DateTime _lastSymbolEvalTime = DateTime.MinValue;
-        private DateTime _lastSymbolSwitchTime = DateTime.MinValue;
-        private readonly TimeSpan _symbolEvalInterval = TimeSpan.FromSeconds(10);
-        private readonly TimeSpan _symbolSwitchCooldown = TimeSpan.FromSeconds(30);
+        private readonly StrategyContext _context = new StrategyContext();
 
         private readonly Dictionary<string, StrategyStats> _strategyStats = new();
         private readonly List<TradeRecord> _tradeHistory = new();
@@ -1013,15 +988,19 @@ namespace DerivSmartBotDesktop.Core
 
         private int _consecutiveLosses = 0;
 
+        // Multi-symbol
+        private readonly List<string> _symbolsToWatch = new();
+        private AutoSymbolMode _autoSymbolMode = AutoSymbolMode.Manual;
+        private string _activeSymbol;
+
+        // Skip-reason tracking (for UI + future AI/ML)
+        private string _lastSkipReason;
+        private readonly List<string> _skipReasonLog = new();
+
         public MarketDiagnostics CurrentDiagnostics { get; private set; } = new MarketDiagnostics();
         public double MarketHeatScore { get; private set; } = 0.0;
 
         public event Action<string> BotEvent;
-
-        // 🆕 Non-trade logging
-        private readonly List<NonTradeRecord> _nonTradeRecords = new();
-        public IReadOnlyList<NonTradeRecord> NonTradeRecords => _nonTradeRecords;
-        public event Action<NonTradeRecord> NonTradeEvent;
 
         public bool AutoStartEnabled { get; set; } = true;
         private readonly int _minTicksBeforeAutoStart = 80;
@@ -1053,8 +1032,6 @@ namespace DerivSmartBotDesktop.Core
             }
         }
 
-        #region Public props
-
         public bool IsRunning => _running && !_autoPaused;
         public bool IsConnected => _deriv?.IsConnected ?? false;
 
@@ -1069,12 +1046,11 @@ namespace DerivSmartBotDesktop.Core
         public IReadOnlyList<TradeRecord> TradeHistory => _tradeHistory;
 
         public IReadOnlyList<string> SymbolsToWatch => _symbolsToWatch;
-        public string ActiveSymbol => _activeSymbol;
         public AutoSymbolMode AutoSymbolMode => _autoSymbolMode;
+        public string ActiveSymbol => _activeSymbol;
 
-        #endregion
-
-        #region Multi-symbol setup
+        public string LastSkipReason => _lastSkipReason;
+        public IReadOnlyList<string> SkipReasonLog => _skipReasonLog;
 
         public void SetSymbolsToWatch(IEnumerable<string> symbols)
         {
@@ -1086,18 +1062,15 @@ namespace DerivSmartBotDesktop.Core
                 {
                     if (!string.IsNullOrWhiteSpace(s))
                     {
-                        var sym = s.Trim();
-                        if (!_symbolsToWatch.Contains(sym))
-                            _symbolsToWatch.Add(sym);
+                        var trimmed = s.Trim();
+                        if (!_symbolsToWatch.Contains(trimmed))
+                            _symbolsToWatch.Add(trimmed);
                     }
                 }
             }
 
-            if (_symbolsToWatch.Count > 0 && string.IsNullOrWhiteSpace(_activeSymbol))
-            {
+            if (string.IsNullOrWhiteSpace(_activeSymbol) && _symbolsToWatch.Count > 0)
                 _activeSymbol = _symbolsToWatch[0];
-                RaiseBotEvent($"Active symbol set to {_activeSymbol}.");
-            }
 
             RaiseBotEvent($"Symbols to watch: {string.Join(", ", _symbolsToWatch)}");
         }
@@ -1113,34 +1086,9 @@ namespace DerivSmartBotDesktop.Core
             if (!string.IsNullOrWhiteSpace(symbol))
             {
                 _activeSymbol = symbol.Trim();
-                RaiseBotEvent($"Active symbol manually set to {_activeSymbol}.");
+                RaiseBotEvent($"Active symbol set to {_activeSymbol}.");
             }
         }
-
-        private StrategyContext GetOrCreateContext(string symbol)
-        {
-            if (string.IsNullOrWhiteSpace(symbol))
-            {
-                symbol = _activeSymbol ?? _symbolsToWatch.FirstOrDefault();
-            }
-
-            if (string.IsNullOrWhiteSpace(symbol))
-            {
-                symbol = "R_50"; // fallback
-            }
-
-            if (!_contexts.TryGetValue(symbol, out var ctx))
-            {
-                ctx = new StrategyContext();
-                _contexts[symbol] = ctx;
-            }
-
-            return ctx;
-        }
-
-        #endregion
-
-        #region Control
 
         public void Start()
         {
@@ -1150,10 +1098,7 @@ namespace DerivSmartBotDesktop.Core
             _running = true;
             _sessionStartBalance = _balance;
             _consecutiveLosses = 0;
-
-            if (string.IsNullOrWhiteSpace(_activeSymbol) && _symbolsToWatch.Count > 0)
-                _activeSymbol = _symbolsToWatch[0];
-
+            SetSkipReason(null, "Bot actively trading.");
             RaiseBotEvent("Bot started.");
         }
 
@@ -1161,6 +1106,7 @@ namespace DerivSmartBotDesktop.Core
         {
             _running = false;
             _userStopped = true;
+            SetSkipReason("MANUAL_STOP", "User manually stopped the bot.");
             RaiseBotEvent("Bot stopped.");
         }
 
@@ -1179,32 +1125,22 @@ namespace DerivSmartBotDesktop.Core
             _balance = bal;
         }
 
-        #endregion
-
-        #region Tick handling + Non-trade logging
-
         private void OnTickReceived(Tick tick)
         {
-            if (tick == null) return;
-
-            var symbol = string.IsNullOrWhiteSpace(tick.Symbol)
-                ? (_activeSymbol ?? _symbolsToWatch.FirstOrDefault())
-                : tick.Symbol;
-
-            if (string.IsNullOrWhiteSpace(symbol))
+            // Only drive the main context from the active symbol
+            if (!string.IsNullOrWhiteSpace(_activeSymbol) &&
+                !string.Equals(tick.Symbol, _activeSymbol, StringComparison.OrdinalIgnoreCase))
+            {
+                // Future: use these ticks for per-symbol ML / heat, but don't drive trading.
                 return;
+            }
 
-            if (string.IsNullOrWhiteSpace(_activeSymbol))
-                _activeSymbol = symbol;
+            _context.AddTick(tick);
 
-            var ctx = GetOrCreateContext(symbol);
-            ctx.AddTick(tick);
+            var baseDiag = _context.AnalyzeRegime() ?? new MarketDiagnostics();
 
-            // Diagnostics & heat for this symbol
-            var baseDiag = ctx.AnalyzeRegime() ?? new MarketDiagnostics();
-            var quotes = ctx.GetLastQuotes(120);
+            var quotes = _context.GetLastQuotes(120);
             double aiScore = 0.0;
-
             var aiRegime = _regimeClassifier.Classify(
                 quotes,
                 baseDiag.Volatility,
@@ -1215,52 +1151,38 @@ namespace DerivSmartBotDesktop.Core
             baseDiag.RegimeScore = aiScore;
             baseDiag.Time = tick.Time;
 
-            _symbolDiagnostics[symbol] = baseDiag;
+            CurrentDiagnostics = baseDiag;
 
-            var heat = AIHelpers.ComputeMarketHeatIndex(ctx, baseDiag);
-            _symbolHeatScores[symbol] = heat;
+            MarketHeatScore = AIHelpers.ComputeMarketHeatIndex(_context, CurrentDiagnostics);
 
-            if (symbol == _activeSymbol)
-            {
-                CurrentDiagnostics = baseDiag;
-                MarketHeatScore = heat;
-            }
-
-            // Auto-select best symbol (smart logic)
-            MaybeSwitchActiveSymbol(DateTime.Now);
-
-            // Only trading on the active symbol
-            if (symbol != _activeSymbol)
-                return;
-
-            var diag = CurrentDiagnostics;
-
-            // Auto-start based on good conditions
             if (!_running &&
                 !_autoPaused &&
                 !_userStopped &&
                 AutoStartEnabled &&
-                ctx.TickWindow.Count >= _minTicksBeforeAutoStart &&
+                _context.TickWindow.Count >= _minTicksBeforeAutoStart &&
                 MarketHeatScore >= _minHeatForAutoStart &&
-                IsGoodTradingConditions(ctx))
+                IsGoodTradingConditions())
             {
                 Start();
-                string volText = diag.Volatility.HasValue
-                    ? diag.Volatility.Value.ToString("F4")
+                string volText = CurrentDiagnostics.Volatility.HasValue
+                    ? CurrentDiagnostics.Volatility.Value.ToString("F4")
                     : "n/a";
-
                 RaiseBotEvent(
                     $"Auto-started bot based on favorable market conditions " +
-                    $"(Symbol: {symbol}, Regime: {diag.Regime}, Score={diag.RegimeScore:F2}, Heat={MarketHeatScore:F1}, Vol={volText}).");
+                    $"(Symbol: {_activeSymbol ?? tick.Symbol}, Regime: {CurrentDiagnostics.Regime}, Score={CurrentDiagnostics.RegimeScore:F2}, Heat={MarketHeatScore:F1}, Vol={volText}).");
             }
 
-            if (!IsRunning) return;
+            if (!IsRunning)
+            {
+                SetSkipReason("BOT_NOT_RUNNING", "Bot is not currently in a running state.");
+                return;
+            }
 
             if (_shortTermPLBlockActive)
             {
                 if (DateTime.Now < _shortTermPLBlockUntil)
                 {
-                    LogNonTrade(symbol, "ShortTermPLBlock", "Short-term P/L block active; trade skipped.");
+                    SetSkipReason("SHORT_TERM_PL_BLOCK", "Short-term P/L block active to protect from drawdown.");
                     return;
                 }
 
@@ -1268,30 +1190,31 @@ namespace DerivSmartBotDesktop.Core
                 RaiseBotEvent("Short-term P/L block expired. Resuming normal conditions check.");
             }
 
-            if (CheckGlobalRiskGatesWithNonTrade(symbol))
+            if (CheckGlobalRiskGates())
             {
                 _running = false;
                 _autoPaused = true;
+                // Skip reason already set inside CheckGlobalRiskGates
                 return;
             }
 
             var now = DateTime.Now;
             if (!IsWithinSession(now))
             {
-                LogNonTrade(symbol, "SessionFilter", "Outside configured trading session.");
+                SetSkipReason("OUTSIDE_SESSION", "Local time is outside configured trading session.");
                 return;
             }
 
             if ((now - _lastTradeTime) < _rules.TradeCooldown)
             {
-                LogNonTrade(symbol, "Cooldown", "Trade cooldown in effect.");
+                SetSkipReason("COOLDOWN", "Trade cooldown has not yet expired.");
                 return;
             }
 
             _tradeTimes.RemoveAll(t => (now - t) > TimeSpan.FromHours(1));
             if (_tradeTimes.Count >= _rules.MaxTradesPerHour)
             {
-                LogNonTrade(symbol, "TradesPerHourLimit", "Max trades per hour reached.");
+                SetSkipReason("MAX_TRADES_PER_HOUR", "Max trades per hour reached.");
                 return;
             }
 
@@ -1303,7 +1226,7 @@ namespace DerivSmartBotDesktop.Core
                     continue;
 
                 if (strategy is IRegimeAwareStrategy ra &&
-                    !ra.ShouldTradeIn(diag))
+                    !ra.ShouldTradeIn(CurrentDiagnostics))
                 {
                     continue;
                 }
@@ -1312,20 +1235,20 @@ namespace DerivSmartBotDesktop.Core
 
                 if (strategy is IAITradingStrategy ai)
                 {
-                    dec = ai.Decide(tick, ctx, diag);
+                    dec = ai.Decide(tick, _context, CurrentDiagnostics);
                 }
                 else
                 {
-                    var sig = strategy.OnNewTick(tick, ctx);
+                    var sig = strategy.OnNewTick(tick, _context);
 
                     double baseConf = 0.0;
                     if (sig != TradeSignal.None)
                     {
                         baseConf = 0.55;
 
-                        if (diag.Regime == MarketRegime.TrendingUp && sig == TradeSignal.Buy)
+                        if (CurrentDiagnostics.Regime == MarketRegime.TrendingUp && sig == TradeSignal.Buy)
                             baseConf += 0.1;
-                        else if (diag.Regime == MarketRegime.TrendingDown && sig == TradeSignal.Sell)
+                        else if (CurrentDiagnostics.Regime == MarketRegime.TrendingDown && sig == TradeSignal.Sell)
                             baseConf += 0.1;
                     }
 
@@ -1345,126 +1268,40 @@ namespace DerivSmartBotDesktop.Core
 
             if (decisions.Count == 0)
             {
-                LogNonTrade(symbol, "NoStrategySignal", "No strategy produced a valid signal.");
+                SetSkipReason("NO_SIGNAL", "No strategy produced a valid trade signal for current tick.");
                 return;
             }
 
             var ensemble = AIHelpers.EnsembleVote(decisions);
             if (ensemble.Signal == TradeSignal.None || ensemble.Confidence < 0.6)
             {
-                LogNonTrade(symbol, "LowEnsembleConfidence", $"Ensemble confidence {ensemble.Confidence:F2} too low or no unanimous direction.");
+                SetSkipReason("LOW_CONFIDENCE",
+                    $"Ensemble confidence too low (conf={ensemble.Confidence:F2}), or no agreement.");
                 return;
             }
 
             var recentTrades = _tradeHistory.OrderByDescending(t => t.Time).Take(40).ToList();
-            double expectedProfitScore = AIHelpers.EstimateExpectedProfitScore(ensemble, diag, recentTrades);
+            double expectedProfitScore = AIHelpers.EstimateExpectedProfitScore(ensemble, CurrentDiagnostics, recentTrades);
 
             if (expectedProfitScore <= 0.0)
             {
-                string msg = $"AI filter blocked trade: expected profit score {expectedProfitScore:F2} (Heat={MarketHeatScore:F1}).";
-                RaiseBotEvent(msg);
-                LogNonTrade(symbol, "ExpectedProfitFilter", msg);
+                SetSkipReason("NEGATIVE_EXPECTED_PROFIT",
+                    $"AI expected-profit filter rejected trade (score={expectedProfitScore:F2}).");
+                RaiseBotEvent($"AI filter blocked trade: expected profit score {expectedProfitScore:F2} (Heat={MarketHeatScore:F1}).");
                 return;
             }
 
-            if (!IsGoodTradingConditions(ctx))
+            if (!IsGoodTradingConditions())
             {
-                string msg = "Conditions check failed at execution step; skipping trade.";
-                RaiseBotEvent(msg);
-                LogNonTrade(symbol, "ConditionsFilter", msg);
+                SetSkipReason("ENVIRONMENT_FILTER",
+                    "Environment / conditions filter failed at final execution step.");
+                RaiseBotEvent("Conditions check failed at execution step; skipping trade.");
                 return;
             }
 
+            SetSkipReason(null, "Trade taken. Conditions and filters satisfied.");
             ExecuteTrade(tick, ensemble, now);
         }
-
-        /// <summary>
-        /// Auto-symbol switching based on heat, regime, ticks, cooldown.
-        /// </summary>
-        private void MaybeSwitchActiveSymbol(DateTime now)
-        {
-            if (_autoSymbolMode != AutoSymbolMode.Auto)
-                return;
-
-            if (_symbolsToWatch == null || _symbolsToWatch.Count == 0)
-                return;
-
-            if ((now - _lastSymbolEvalTime) < _symbolEvalInterval)
-                return;
-
-            _lastSymbolEvalTime = now;
-
-            // Do not switch while trades are open (1-tick trades should clear fast)
-            if (_openTrades.Count > 0)
-                return;
-
-            if ((now - _lastSymbolSwitchTime) < _symbolSwitchCooldown)
-                return;
-
-            var currentSymbol = _activeSymbol ?? _symbolsToWatch[0];
-            var currentCtx = GetOrCreateContext(currentSymbol);
-            bool currentHasMinTicks = currentCtx.TickWindow.Count >= 50;
-
-            _symbolHeatScores.TryGetValue(currentSymbol, out double currentHeat);
-
-            string bestSymbol = null;
-            double bestHeat = double.MinValue;
-            MarketDiagnostics bestDiag = null;
-
-            foreach (var sym in _symbolsToWatch)
-            {
-                var ctx = GetOrCreateContext(sym);
-                if (ctx.TickWindow.Count < 50)
-                    continue;
-
-                if (!_symbolDiagnostics.TryGetValue(sym, out var diag))
-                {
-                    diag = ctx.AnalyzeRegime();
-                    if (diag == null)
-                        continue;
-                }
-
-                if (diag.Regime != MarketRegime.TrendingUp &&
-                    diag.Regime != MarketRegime.TrendingDown &&
-                    diag.Regime != MarketRegime.RangingHighVol)
-                    continue;
-
-                if (!_symbolHeatScores.TryGetValue(sym, out var h))
-                {
-                    h = AIHelpers.ComputeMarketHeatIndex(ctx, diag);
-                    _symbolHeatScores[sym] = h;
-                }
-
-                if (h > bestHeat)
-                {
-                    bestHeat = h;
-                    bestSymbol = sym;
-                    bestDiag = diag;
-                }
-            }
-
-            if (bestSymbol == null)
-                return;
-
-            if (!currentHasMinTicks || bestHeat >= currentHeat + 10.0)
-            {
-                if (bestSymbol == currentSymbol)
-                    return;
-
-                _activeSymbol = bestSymbol;
-                CurrentDiagnostics = bestDiag;
-                MarketHeatScore = bestHeat;
-                _lastSymbolSwitchTime = now;
-
-                RaiseBotEvent(
-                    $"Auto-symbol: switched to {bestSymbol} " +
-                    $"(Heat={bestHeat:F1}, Regime={bestDiag.Regime}).");
-            }
-        }
-
-        #endregion
-
-        #region Risk / Session / Conditions
 
         private bool IsWithinSession(DateTime nowLocal)
         {
@@ -1475,8 +1312,7 @@ namespace DerivSmartBotDesktop.Core
             return t >= _rules.SessionStartLocal.Value && t <= _rules.SessionEndLocal.Value;
         }
 
-        // 🆕 version that logs non-trade reasons when risk gates block trading
-        private bool CheckGlobalRiskGatesWithNonTrade(string symbol)
+        private bool CheckGlobalRiskGates()
         {
             var r = _riskManager.Settings;
             double start = _sessionStartBalance;
@@ -1485,27 +1321,24 @@ namespace DerivSmartBotDesktop.Core
             if (_riskManager.IsDailyDrawdownExceeded(start, cur))
             {
                 _autoPauseReason = AutoPauseReason.DailyDrawdownLimit;
-                string msg = "Auto-paused: daily drawdown limit reached.";
-                RaiseBotEvent(msg);
-                LogNonTrade(symbol, "RiskGate:DailyDrawdownLimit", msg);
+                SetSkipReason("DAILY_DRAWDOWN_LIMIT", "Daily drawdown limit reached. Auto-pausing bot.");
+                RaiseBotEvent("Auto-paused: daily drawdown limit reached.");
                 return true;
             }
 
             if (_riskManager.IsDailyLossAmountExceeded(start, cur))
             {
                 _autoPauseReason = AutoPauseReason.DailyLossAmountLimit;
-                string msg = "Auto-paused: daily loss amount limit reached.";
-                RaiseBotEvent(msg);
-                LogNonTrade(symbol, "RiskGate:DailyLossAmountLimit", msg);
+                SetSkipReason("DAILY_LOSS_LIMIT", "Daily loss amount limit reached. Auto-pausing bot.");
+                RaiseBotEvent("Auto-paused: daily loss amount limit reached.");
                 return true;
             }
 
             if (_riskManager.IsDailyProfitLimitReached(start, cur))
             {
                 _autoPauseReason = AutoPauseReason.DailyProfitLimit;
-                string msg = "Auto-paused: daily profit limit reached.";
-                RaiseBotEvent(msg);
-                LogNonTrade(symbol, "RiskGate:DailyProfitLimit", msg);
+                SetSkipReason("DAILY_PROFIT_LIMIT", "Daily profit target reached. Locking in profits.");
+                RaiseBotEvent("Auto-paused: daily profit limit reached.");
                 return true;
             }
 
@@ -1518,9 +1351,9 @@ namespace DerivSmartBotDesktop.Core
                 winRate < r.MinWinRatePercentToContinue)
             {
                 _autoPauseReason = AutoPauseReason.WinRateBelowThreshold;
-                string msg = $"Auto-paused: win rate {winRate:F1}% below threshold {r.MinWinRatePercentToContinue:F1}%.";
-                RaiseBotEvent(msg);
-                LogNonTrade(symbol, "RiskGate:WinRateBelowThreshold", msg);
+                SetSkipReason("WINRATE_BELOW_THRESHOLD",
+                    $"Global win rate {winRate:F1}% is below configured threshold {r.MinWinRatePercentToContinue:F1}%.");
+                RaiseBotEvent($"Auto-paused: win rate {winRate:F1}% below threshold {r.MinWinRatePercentToContinue:F1}%.");
                 return true;
             }
 
@@ -1528,23 +1361,30 @@ namespace DerivSmartBotDesktop.Core
                 _consecutiveLosses >= r.MaxConsecutiveLosses)
             {
                 _autoPauseReason = AutoPauseReason.ConsecutiveLossLimit;
-                string msg = $"Auto-paused: max consecutive losses ({_consecutiveLosses}) reached.";
-                RaiseBotEvent(msg);
-                LogNonTrade(symbol, "RiskGate:ConsecutiveLossLimit", msg);
+                SetSkipReason("CONSECUTIVE_LOSS_LIMIT",
+                    $"Max consecutive losses reached ({_consecutiveLosses}). Auto-pausing bot.");
+                RaiseBotEvent($"Auto-paused: max consecutive losses ({_consecutiveLosses}) reached.");
                 return true;
             }
 
             return false;
         }
 
-        private bool IsGoodTradingConditions(StrategyContext ctx)
+        private bool IsGoodTradingConditions()
         {
             var diag = CurrentDiagnostics;
-            if (diag == null || ctx == null) return false;
+            if (diag == null)
+            {
+                SetSkipReason("NO_DIAGNOSTICS", "No diagnostics available for current environment.");
+                return false;
+            }
 
             if (diag.Regime == MarketRegime.Unknown ||
                 diag.Regime == MarketRegime.VolatileChoppy)
+            {
+                SetSkipReason("BAD_REGIME", $"Regime is {diag.Regime}, not suitable for trading.");
                 return false;
+            }
 
             bool regimeOk = diag.Regime == MarketRegime.TrendingUp ||
                             diag.Regime == MarketRegime.TrendingDown ||
@@ -1552,21 +1392,30 @@ namespace DerivSmartBotDesktop.Core
                             diag.Regime == MarketRegime.RangingLowVol;
 
             if (!regimeOk)
+            {
+                SetSkipReason("UNSUPPORTED_REGIME", $"Regime {diag.Regime} is not in supported list.");
                 return false;
+            }
 
             if (diag.Volatility is double vol)
             {
                 if (vol < 0.02 || vol > 2.0)
+                {
+                    SetSkipReason("VOL_BAND", $"Volatility {vol:F4} outside safe band.");
                     return false;
+                }
             }
 
             if (diag.TrendSlope is double slope)
             {
                 if (Math.Abs(slope) > 0.02)
+                {
+                    SetSkipReason("SLOPE_EXTREME", $"Trend slope too extreme ({slope:F5}).");
                     return false;
+                }
             }
 
-            var recentQuotes = ctx.GetLastQuotes(25);
+            var recentQuotes = _context.GetLastQuotes(25);
             if (recentQuotes.Count >= 5)
             {
                 double mean = recentQuotes.Average();
@@ -1579,6 +1428,7 @@ namespace DerivSmartBotDesktop.Core
                         double step = Math.Abs(recentQuotes[i] - recentQuotes[i - 1]);
                         if (step > 3.0 * sd)
                         {
+                            SetSkipReason("SPIKE_DETECTED", "Recent 3-sigma spike detected. Waiting for market to calm.");
                             RaiseBotEvent("Conditions filter: recent spike detected, delaying trades.");
                             return false;
                         }
@@ -1598,6 +1448,8 @@ namespace DerivSmartBotDesktop.Core
 
                 if (sumPL < -5.0 || lastThreeLosses)
                 {
+                    SetSkipReason("RECENT_PL_POOR",
+                        $"Recent P/L unfavorable (last {recentTrades.Count} trades P/L={sumPL:F2}).");
                     RaiseBotEvent($"Conditions filter: recent P/L unfavorable (last {recentTrades.Count} P/L={sumPL:F2}), delaying trades.");
                     return false;
                 }
@@ -1605,10 +1457,6 @@ namespace DerivSmartBotDesktop.Core
 
             return true;
         }
-
-        #endregion
-
-        #region Strategy health / staking / execution
 
         private bool IsStrategyTemporarilyBlocked(ITradingStrategy strategy)
         {
@@ -1681,7 +1529,7 @@ namespace DerivSmartBotDesktop.Core
             };
 
             _openTrades[tradeId] = record;
-            RaiseBotEvent($"[Ensemble] Placing {dirText} trade via {decision.StrategyName} at {tick.Quote:F4} stake={stake:F2}, conf={decision.Confidence:F2}, heat={MarketHeatScore:F1}, symbol={tick.Symbol}");
+            RaiseBotEvent($"[Ensemble] Placing {dirText} trade via {decision.StrategyName} at {tick.Quote:F4} stake={stake:F2}, conf={decision.Confidence:F2}, heat={MarketHeatScore:F1}");
 
             await _deriv.BuyRiseFallAsync(
                 tick.Symbol,
@@ -1721,12 +1569,12 @@ namespace DerivSmartBotDesktop.Core
 
                 stats.NetPL += profit;
 
-                RaiseBotEvent($"Trade finished [{strategyName}] dir={record.Direction} stake={record.Stake:F2} P/L={profit:F2} (symbol={record.Symbol})");
+                RaiseBotEvent($"Trade finished [{strategyName}] dir={record.Direction} stake={record.Stake:F2} P/L={profit:F2}");
 
                 EvaluateStrategyHealth(strategyName);
                 EvaluateShortTermPL();
 
-                if (CheckGlobalRiskGatesWithNonTrade(record.Symbol))
+                if (CheckGlobalRiskGates())
                 {
                     _running = false;
                     _autoPaused = true;
@@ -1772,32 +1620,30 @@ namespace DerivSmartBotDesktop.Core
             {
                 _shortTermPLBlockActive = true;
                 _shortTermPLBlockUntil = DateTime.Now.AddMinutes(15);
+                SetSkipReason("SHORT_TERM_DRAWDOWN",
+                    $"Short-term drawdown detected (last {recent.Count} trades P/L: {totalPL:F2}).");
                 RaiseBotEvent($"Temporarily pausing trades due to short-term drawdown (last {recent.Count} trades P/L: {totalPL:F2}).");
             }
         }
 
-        private void LogNonTrade(string symbol, string reason, string detail)
+        private void SetSkipReason(string code, string message)
         {
-            var rec = new NonTradeRecord
-            {
-                Time = DateTime.Now,
-                Symbol = symbol ?? _activeSymbol,
-                Reason = reason,
-                Detail = detail,
-                Heat = MarketHeatScore,
-                Regime = CurrentDiagnostics?.Regime
-            };
+            if (string.IsNullOrWhiteSpace(message))
+                return;
 
-            _nonTradeRecords.Add(rec);
-            NonTradeEvent?.Invoke(rec);
+            string prefix = code == null ? "INFO" : code;
+
+            _lastSkipReason = $"{DateTime.Now:HH:mm:ss} [{prefix}] {message}";
+            _skipReasonLog.Add(_lastSkipReason);
+
+            // This same stream can be used later to feed an offline ML trainer.
+            RaiseBotEvent($"[SkipReason] {_lastSkipReason}");
         }
 
         private void RaiseBotEvent(string msg)
         {
             BotEvent?.Invoke(msg);
         }
-
-        #endregion
     }
 
     #endregion

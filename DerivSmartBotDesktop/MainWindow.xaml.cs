@@ -119,7 +119,8 @@ namespace DerivSmartBotDesktop
             if (!string.IsNullOrWhiteSpace(_settings.Symbol))
                 watchList.Add(_settings.Symbol.Trim());
 
-            string[] defaults = {
+            string[] defaults =
+            {
                 "R_10", "R_25", "R_50", "R_75", "R_100",
                 "1HZ10V", "1HZ15V", "1HZ25V", "1HZ30V", "1HZ90V", "1HZ100V", "1HZ75V",
                 "STPRNG", "STPRNG2", "STPRNG3", "STPRNG4", "STPRNG5",
@@ -134,7 +135,7 @@ namespace DerivSmartBotDesktop
             }
 
             _controller.SetSymbolsToWatch(watchList);
-            _controller.SetAutoSymbolMode(AutoSymbolMode.Manual); // keep logic but UI does not expose
+            _controller.SetAutoSymbolMode(AutoSymbolMode.Manual); // multi-symbol infra kept, logic still driven by active symbol
 
             // 7) ViewModel & DataContext
             _viewModel = new BotViewModel(_controller);

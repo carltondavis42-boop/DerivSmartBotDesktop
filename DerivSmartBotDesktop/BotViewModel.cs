@@ -35,10 +35,9 @@ namespace DerivSmartBotDesktop
 
         private string _statusText;
         private string _rulesSummary;
-
-        // New: symbol + market heat
-        private string _activeSymbol;
         private double _marketHeatScore;
+        private string _activeSymbol;
+        private string _lastSkipReason;
 
         public double Balance
         {
@@ -106,18 +105,22 @@ namespace DerivSmartBotDesktop
             set { _rulesSummary = value; OnPropertyChanged(); }
         }
 
-        // New: Active symbol (for header)
+        public double MarketHeatScore
+        {
+            get => _marketHeatScore;
+            set { _marketHeatScore = value; OnPropertyChanged(); }
+        }
+
         public string ActiveSymbol
         {
             get => _activeSymbol;
             set { _activeSymbol = value; OnPropertyChanged(); }
         }
 
-        // New: Market heat score (for header)
-        public double MarketHeatScore
+        public string LastSkipReason
         {
-            get => _marketHeatScore;
-            set { _marketHeatScore = value; OnPropertyChanged(); }
+            get => _lastSkipReason;
+            set { _lastSkipReason = value; OnPropertyChanged(); }
         }
 
         public Array Profiles => Enum.GetValues(typeof(BotProfile));
@@ -136,7 +139,7 @@ namespace DerivSmartBotDesktop
             }
         }
 
-        // Expose AutoStartEnabled to UI
+        // Auto-start toggle
         public bool AutoStartEnabled
         {
             get => _controller?.AutoStartEnabled ?? false;
@@ -155,7 +158,6 @@ namespace DerivSmartBotDesktop
         public ObservableCollection<StrategySummary> StrategySummaries { get; } = new();
         public ObservableCollection<TradeRecord> TradeHistory { get; } = new();
         public ObservableCollection<string> LogEntries { get; } = new();
-
         public string CombinedLog => string.Join(Environment.NewLine, LogEntries);
 
         public BotViewModel(SmartBotController controller)
@@ -166,7 +168,7 @@ namespace DerivSmartBotDesktop
             {
                 AddLog(msg);
 
-                // Force immediate refresh on important events
+                // Force an immediate UI refresh when important events happen
                 App.Current.Dispatcher.Invoke(() =>
                 {
                     Refresh();
@@ -207,14 +209,13 @@ namespace DerivSmartBotDesktop
             IsRunning = _controller.IsRunning;
             IsConnected = _controller.IsConnected;
             ActiveStrategyName = _controller.ActiveStrategyName;
-
-            // New: symbol + heat from controller
             ActiveSymbol = _controller.ActiveSymbol;
             MarketHeatScore = _controller.MarketHeatScore;
 
             var diag = _controller.CurrentDiagnostics;
             CurrentRegime = diag?.Regime.ToString() ?? "Unknown";
             AutoPauseReasonText = _controller.LastAutoPauseReason.ToString();
+            LastSkipReason = _controller.LastSkipReason;
 
             var stats = _controller.StrategyStats.Values;
             int totalTrades = stats.Sum(s => s.TotalTrades);
@@ -265,7 +266,7 @@ namespace DerivSmartBotDesktop
 
             if (IsRunning)
             {
-                StatusText = $"Trading (Profile: {SelectedProfile}, Regime: {CurrentRegime})";
+                StatusText = $"Trading (Profile: {SelectedProfile}, Regime: {CurrentRegime}, Symbol: {ActiveSymbol})";
                 return;
             }
 
@@ -277,7 +278,7 @@ namespace DerivSmartBotDesktop
 
             if (AutoStartEnabled)
             {
-                StatusText = $"Watching market for good conditions (Regime: {CurrentRegime})";
+                StatusText = $"Watching market for good conditions (Regime: {CurrentRegime}, Symbol: {ActiveSymbol})";
                 return;
             }
 

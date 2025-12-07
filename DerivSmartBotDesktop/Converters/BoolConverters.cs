@@ -2,47 +2,35 @@
 using System.Globalization;
 using System.Windows.Data;
 
-namespace DerivSmartBotDesktop
+namespace DerivSmartBotDesktop.Converters
 {
-    /// <summary>
-    /// Converts IsConnected (bool) to "Connected" / "Disconnected"
-    /// </summary>
+    [ValueConversion(typeof(bool), typeof(string))]
     public class BoolToTextConnectedConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value is bool b)
-            {
-                return b ? "Connected" : "Disconnected";
-            }
-            return "Disconnected";
+            bool isConnected = value is bool b && b;
+            return isConnected ? "Connected" : "Disconnected";
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            // Not used in this app
-            throw new NotImplementedException();
+            throw new NotSupportedException();
         }
     }
 
-    /// <summary>
-    /// Converts IsRunning (bool) to "Running" / "Stopped"
-    /// </summary>
+    [ValueConversion(typeof(bool), typeof(string))]
     public class BoolToTextBotConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value is bool b)
-            {
-                return b ? "Running" : "Stopped";
-            }
-            return "Stopped";
+            bool running = value is bool b && b;
+            return running ? "Bot Running" : "Bot Stopped";
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            // Not used in this app
-            throw new NotImplementedException();
+            throw new NotSupportedException();
         }
     }
 }
