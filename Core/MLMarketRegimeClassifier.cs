@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json;
+using System.Linq;
 
 namespace DerivSmartBotDesktop.Core
 {
@@ -26,6 +27,11 @@ namespace DerivSmartBotDesktop.Core
         (MarketRegime Regime, double Confidence) Predict(ReadOnlySpan<double> features);
     }
 
+    public interface IFeatureAwareRegimeModel : IMLRegimeModel
+    {
+        IReadOnlyList<string> FeatureNames { get; }
+    }
+
     /// <summary>
     /// Market regime classifier that delegates to a trained ML model and falls
     /// back to the built-in heuristic <see cref="AiMarketRegimeClassifier"/>
@@ -36,6 +42,7 @@ namespace DerivSmartBotDesktop.Core
         private readonly IMLRegimeModel _model;
         private readonly IMarketRegimeClassifier _fallback;
         private readonly double _minConfidence;
+        private readonly IReadOnlyList<string> _featureNames;
 
         public MLMarketRegimeClassifier(
             IMLRegimeModel model,
@@ -45,6 +52,9 @@ namespace DerivSmartBotDesktop.Core
             _model = model ?? throw new ArgumentNullException(nameof(model));
             _fallback = fallback ?? new AiMarketRegimeClassifier();
             _minConfidence = Math.Clamp(minConfidence, 0.0, 1.0);
+            _featureNames = model is IFeatureAwareRegimeModel fam
+                ? fam.FeatureNames
+                : Array.Empty<string>();
         }
 
         public MarketRegime Classify(
@@ -61,7 +71,7 @@ namespace DerivSmartBotDesktop.Core
 
             try
             {
-                var features = BuildFeatures(prices, volatility, trendSlope);
+                var features = BuildFeatures(prices, volatility, trendSlope, _featureNames);
                 var (regime, confidence) = _model.Predict(features);
 
                 // If the model is unsure or returns Unknown, fall back.
@@ -89,16 +99,65 @@ namespace DerivSmartBotDesktop.Core
         private static double[] BuildFeatures(
             IReadOnlyList<double> prices,
             double? volatility,
-            double? trendSlope)
+            double? trendSlope,
+            IReadOnlyList<string> featureNames)
         {
             double lastPrice = prices[prices.Count - 1];
+            double mean = prices.Count > 0 ? prices.Average() : lastPrice;
+            double min = prices.Count > 0 ? prices.Min() : lastPrice;
+            double max = prices.Count > 0 ? prices.Max() : lastPrice;
+            double range = max - min;
 
-            return new[]
+            if (featureNames == null || featureNames.Count == 0)
             {
-                lastPrice,
-                volatility ?? 0.0,
-                trendSlope ?? 0.0
-            };
+                return new[]
+                {
+                    lastPrice,
+                    volatility ?? 0.0,
+                    trendSlope ?? 0.0
+                };
+            }
+
+            double Resolve(string name)
+            {
+                string key = name.ToLowerInvariant();
+                return key switch
+                {
+                    "price" => lastPrice,
+                    "volatility" or "vol" => volatility ?? 0.0,
+                    "trendslope" or "slope" => trendSlope ?? 0.0,
+                    "mean" => mean,
+                    "std" or "stdev" or "stddev" => ComputeStd(prices),
+                    "range" => range,
+                    "regimescore" => 0.0,
+                    "heat" or "marketheat" => 0.0,
+                    "netresult" => 0.0,
+                    _ => 0.0
+                };
+            }
+
+            double[] values = new double[featureNames.Count];
+            for (int i = 0; i < featureNames.Count; i++)
+            {
+                values[i] = Resolve(featureNames[i]);
+            }
+
+            return values;
+        }
+
+        private static double ComputeStd(IReadOnlyList<double> prices)
+        {
+            if (prices == null || prices.Count == 0)
+                return 0.0;
+
+            double mean = prices.Average();
+            double sumSq = 0.0;
+            foreach (var p in prices)
+            {
+                double d = p - mean;
+                sumSq += d * d;
+            }
+            return Math.Sqrt(sumSq / prices.Count);
         }
     }
 
@@ -107,11 +166,12 @@ namespace DerivSmartBotDesktop.Core
     /// a simple multinomial logistic regression model exported by the
     /// Python training script in the ml/ folder (regime-linear-v1.json).
     /// </summary>
-    public sealed class JsonRegimeModel : IMLRegimeModel
+    public sealed class JsonRegimeModel : IFeatureAwareRegimeModel
     {
         private readonly string[] _classes;
         private readonly double[][] _coef;
         private readonly double[] _intercept;
+        private readonly string[] _featureNames;
 
         private sealed class RegimeModelConfig
         {
@@ -119,6 +179,8 @@ namespace DerivSmartBotDesktop.Core
             public string[]? Classes { get; set; }
             public double[][]? Coef { get; set; }
             public double[]? Intercept { get; set; }
+            public string[]? Feature_Names { get; set; }
+            public string[]? FeatureNames { get; set; }
         }
 
         public JsonRegimeModel(string jsonPath)
@@ -136,15 +198,15 @@ namespace DerivSmartBotDesktop.Core
             _classes = config.Classes ?? throw new InvalidOperationException("Missing 'classes' array in regime model JSON.");
             _coef = config.Coef ?? throw new InvalidOperationException("Missing 'coef' array in regime model JSON.");
             _intercept = config.Intercept ?? throw new InvalidOperationException("Missing 'intercept' array in regime model JSON.");
+            _featureNames = config.Feature_Names ?? config.FeatureNames ?? Array.Empty<string>();
 
             if (_coef.Length != _classes.Length || _intercept.Length != _classes.Length)
                 throw new InvalidOperationException("Inconsistent lengths between classes, coef, and intercept arrays.");
 
             foreach (var row in _coef)
             {
-                if (row.Length != 3)
-                    throw new InvalidOperationException(
-                        "Expected exactly 3 coefficients per class (Price, Volatility, TrendSlope).");
+                if (row.Length == 0)
+                    throw new InvalidOperationException("Coefficient rows must contain at least one element.");
             }
         }
 
@@ -152,10 +214,6 @@ namespace DerivSmartBotDesktop.Core
         {
             if (features.Length < 3)
                 throw new ArgumentException("Expected at least 3 features (Price, Volatility, TrendSlope).", nameof(features));
-
-            double f0 = features[0];
-            double f1 = features[1];
-            double f2 = features[2];
 
             int n = _classes.Length;
             if (n == 0)
@@ -168,7 +226,11 @@ namespace DerivSmartBotDesktop.Core
             for (int i = 0; i < n; i++)
             {
                 var w = _coef[i];
-                double z = _intercept[i] + w[0] * f0 + w[1] * f1 + w[2] * f2;
+                double z = _intercept[i];
+                for (int j = 0; j < w.Length && j < features.Length; j++)
+                {
+                    z += w[j] * features[j];
+                }
                 logits[i] = z;
                 if (z > maxLogit)
                     maxLogit = z;
@@ -201,5 +263,7 @@ namespace DerivSmartBotDesktop.Core
 
             return (regime, bestProb);
         }
+
+        public IReadOnlyList<string> FeatureNames => _featureNames;
     }
 }

@@ -32,6 +32,10 @@ namespace DerivSmartBotDesktop.Core
         public string Direction { get; set; }   // "Buy" or "Sell"
         public double Stake { get; set; }
         public double Profit { get; set; }
+
+        // Entry-time ML/diagnostic snapshot (used for logging without leakage)
+        public FeatureVector? EntryFeatures { get; set; }
+        public StrategyDecision? Decision { get; set; }
     }
 
     public class StrategyStats
@@ -335,6 +339,18 @@ namespace DerivSmartBotDesktop.Core
         public string StrategyName { get; set; }
         public TradeSignal Signal { get; set; }
         public double Confidence { get; set; }  // 0.0 - 1.0
+
+        /// <summary>
+        /// ML-estimated probability that this decision will result in a profitable trade.
+        /// Populated by strategy selectors when an edge model is available.
+        /// </summary>
+        public double? EdgeProbability { get; set; }
+
+        /// <summary>
+        /// Composite quality score used by the selector to rank candidates.
+        /// Higher is better; typically anchored around 0..100.
+        /// </summary>
+        public double QualityScore { get; set; }
     }
 
     public interface ITradingStrategy
@@ -2766,6 +2782,23 @@ private void OnTickReceived(Tick tick)
                 return;
             }
 
+            FeatureVector? entryFeatures = null;
+            if (_featureExtractor != null && CurrentDiagnostics != null)
+            {
+                try
+                {
+                    entryFeatures = _featureExtractor.Extract(
+                        _context,
+                        tick,
+                        CurrentDiagnostics,
+                        MarketHeatScore);
+                }
+                catch
+                {
+                    // non-fatal; fall back to null features
+                }
+            }
+
             var decisions = new List<StrategyDecision>();
 
             foreach (var strategy in _strategies)
@@ -2828,6 +2861,8 @@ private void OnTickReceived(Tick tick)
                     tick,
                     _context,
                     CurrentDiagnostics,
+                    entryFeatures,
+                    MarketHeatScore,
                     _strategyStats,
                     decisions);
             }
@@ -2883,7 +2918,7 @@ private void OnTickReceived(Tick tick)
             }
 
             SetSkipReason(null, "Trade taken. Conditions and filters satisfied.");
-            ExecuteTrade(tick, ensemble, now);
+            ExecuteTrade(tick, ensemble, now, entryFeatures);
         }
 
         private bool IsWithinSession(DateTime nowLocal)
@@ -3140,7 +3175,7 @@ private void OnTickReceived(Tick tick)
             return false;
         }
 
-        private async void ExecuteTrade(Tick tick, StrategyDecision decision, DateTime now)
+        private async void ExecuteTrade(Tick tick, StrategyDecision decision, DateTime now, FeatureVector? entryFeatures)
         {
             double baseStake;
             StrategyStats? strategyStats = null;
@@ -3194,10 +3229,14 @@ private void OnTickReceived(Tick tick)
 
             // 2) Dynamic stake sizing
             double modelConfidence = Math.Max(0.0, Math.Min(1.0, decision.Confidence));
+            double edgeProbability = decision.EdgeProbability ?? 0.5;
             double stake = DynamicRiskHelper.ComputeDynamicStake(
                 baseStake,
                 modelConfidence,
+                edgeProbability,
                 diagnosticsSnapshot.Regime,
+                diagnosticsSnapshot.RegimeScore,
+                MarketHeatScore,
                 strategyStats,
                 recentTradesSnapshot,
                 riskSettings);
@@ -3235,7 +3274,9 @@ private void OnTickReceived(Tick tick)
                     StrategyName = decision.StrategyName,
                     Direction = dirText,
                     Stake = stake,
-                    Profit = 0.0
+                    Profit = 0.0,
+                    EntryFeatures = entryFeatures,
+                    Decision = decision
                 };
 
                 _openTrades[tradeId] = record;
@@ -3267,27 +3308,36 @@ private void OnTickReceived(Tick tick)
                         record.Profit = profit;
                         _tradeHistory.Add(record);
 
-                        // NEW: log trade with features for ML training
-                        if (_tradeLogger != null && _featureExtractor != null && CurrentDiagnostics != null)
+                        // Log trade with entry-time features to avoid label leakage
+                        if (_tradeLogger != null)
                         {
-                            var latestTick = _context.TickWindow.LastOrDefault();
-                            if (latestTick != null)
-                            {
-                                var features = _featureExtractor.Extract(
-                                    _context,
-                                    latestTick,
-                                    CurrentDiagnostics,
-                                    MarketHeatScore);
+                            var features = record.EntryFeatures;
 
+                            if (features == null && _featureExtractor != null && CurrentDiagnostics != null)
+                            {
+                                var latestTick = _context.TickWindow.LastOrDefault();
+                                if (latestTick != null)
+                                {
+                                    features = _featureExtractor.Extract(
+                                        _context,
+                                        latestTick,
+                                        CurrentDiagnostics,
+                                        MarketHeatScore);
+                                }
+                            }
+
+                            if (features != null)
+                            {
                                 var signal = record.Direction == "Buy"
                                     ? TradeSignal.Buy
                                     : TradeSignal.Sell;
 
-                                var decision = new StrategyDecision
+                                var decision = record.Decision ?? new StrategyDecision
                                 {
                                     StrategyName = strategyName,
                                     Signal = signal,
-                                    Confidence = CurrentDiagnostics.RegimeScore ?? 0.0
+                                    Confidence = CurrentDiagnostics?.RegimeScore ?? 0.0,
+                                    EdgeProbability = record.Decision?.EdgeProbability
                                 };
 
                                 _tradeLogger.Log(features, decision, record.Stake, profit);
