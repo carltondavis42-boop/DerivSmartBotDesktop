@@ -126,7 +126,15 @@ namespace DerivSmartBotDesktop.Core
                 }
             }
 
-            // 5) Respect min stake and let RiskManager clamp the rest.
+            // 5) Enforce balance-based cap if configured.
+            if (settings.MaxStakeAsBalanceFraction > 0 && currentBalance > 0)
+            {
+                double maxByBalance = currentBalance * settings.MaxStakeAsBalanceFraction;
+                if (stake > maxByBalance)
+                    stake = maxByBalance;
+            }
+
+            // 6) Respect min stake and let RiskManager clamp the rest.
             if (stake < settings.MinStake)
                 stake = settings.MinStake;
 
