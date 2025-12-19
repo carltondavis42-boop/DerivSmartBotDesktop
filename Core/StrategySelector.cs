@@ -16,6 +16,8 @@ namespace DerivSmartBotDesktop.Core
             Tick tick,
             StrategyContext context,
             MarketDiagnostics diagnostics,
+            FeatureVector? features,
+            double marketHeatScore,
             IReadOnlyDictionary<string, StrategyStats> strategyStats,
             IReadOnlyList<StrategyDecision> candidates);
     }
@@ -32,6 +34,8 @@ namespace DerivSmartBotDesktop.Core
             Tick tick,
             StrategyContext context,
             MarketDiagnostics diagnostics,
+            FeatureVector? features,
+            double marketHeatScore,
             IReadOnlyDictionary<string, StrategyStats> strategyStats,
             IReadOnlyList<StrategyDecision> candidates)
         {
@@ -66,21 +70,23 @@ namespace DerivSmartBotDesktop.Core
 
                     // NetPL is in account currency; scale it down so it does not dominate.
                     score += stats.NetPL * 0.1;
-                }
 
-                // Light regime bias: in trending regimes, nudge momentum / breakout / scalping.
-                if (diagnostics != null &&
-                    (diagnostics.Regime == MarketRegime.TrendingUp ||
-                     diagnostics.Regime == MarketRegime.TrendingDown) &&
-                    !string.IsNullOrEmpty(decision.StrategyName))
-                {
-                    if (decision.StrategyName.Contains("Momentum", StringComparison.OrdinalIgnoreCase) ||
-                        decision.StrategyName.Contains("Breakout", StringComparison.OrdinalIgnoreCase) ||
-                        decision.StrategyName.Contains("Scalping", StringComparison.OrdinalIgnoreCase))
+                    // If we have a statistically meaningful sample, lean more on win rate quality.
+                    if (stats.TotalTrades >= 12)
                     {
-                        score += 5.0;
+                        if (stats.WinRate < 45)
+                        {
+                            score -= 15.0;
+                        }
+                        else if (stats.WinRate > 65)
+                        {
+                            score += 10.0;
+                        }
                     }
                 }
+
+                // Regime-aware biasing using current diagnostics + strategy name hints.
+                score += StrategySelectionScoring.ComputeRegimeBias(diagnostics, decision);
 
                 if (score > bestScore)
                 {
@@ -96,61 +102,257 @@ namespace DerivSmartBotDesktop.Core
             if (best.Confidence < 0.5) best.Confidence = 0.5;
             if (best.Confidence > 0.99) best.Confidence = 0.99;
 
+            best.QualityScore = bestScore;
+
             return best;
         }
     }
 
     /// <summary>
-    /// Configuration for the ML strategy edge model.
-    /// Each entry describes a static "edge" score per strategy, with optional
-    /// weights for different diagnostics dimensions.
+    /// Edge model loader that understands modern per-strategy logistic regression
+    /// JSON as well as legacy weight-based configs.
     /// </summary>
     public sealed class JsonStrategyEdgeModel
     {
-        private readonly Dictionary<string, StrategyEdgeConfig> _byStrategyName;
+        private readonly Dictionary<string, LogisticModel> _perStrategyModels = new(StringComparer.OrdinalIgnoreCase);
+        private readonly LogisticModel? _globalModel;
+        private readonly Dictionary<string, StrategyEdgeConfig> _legacyWeights = new(StringComparer.OrdinalIgnoreCase);
 
         public JsonStrategyEdgeModel(string jsonPath)
         {
             if (jsonPath == null) throw new ArgumentNullException(nameof(jsonPath));
 
-            using var stream = File.OpenRead(jsonPath);
-            var model = JsonSerializer.Deserialize<StrategyEdgeModelConfig>(stream)
-                        ?? new StrategyEdgeModelConfig();
+            string json = File.ReadAllText(jsonPath);
 
-            _byStrategyName = model.Strategies
-                .Where(s => !string.IsNullOrWhiteSpace(s.Strategy))
-                .ToDictionary(
-                    s => s.Strategy,
-                    s => s,
-                    StringComparer.OrdinalIgnoreCase);
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            string modelType = root.TryGetProperty("model_type", out var mt)
+                ? mt.GetString() ?? string.Empty
+                : string.Empty;
+
+            if (string.Equals(modelType, "per_strategy_logistic_regression", StringComparison.OrdinalIgnoreCase))
+            {
+                var featureNames = ReadFeatureNames(root);
+
+                if (root.TryGetProperty("strategies", out var strategiesEl) && strategiesEl.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var s in strategiesEl.EnumerateArray())
+                    {
+                        var lm = LogisticModel.FromJsonElement(s, featureNames);
+                        if (!string.IsNullOrWhiteSpace(lm.Strategy))
+                        {
+                            _perStrategyModels[lm.Strategy] = lm;
+                        }
+                    }
+                }
+
+                if (root.TryGetProperty("global_model", out var globalEl))
+                {
+                    _globalModel = LogisticModel.FromJsonElement(globalEl, featureNames, strategyName: "global");
+                }
+            }
+            else if (string.Equals(modelType, "binary_logistic_regression", StringComparison.OrdinalIgnoreCase))
+            {
+                _globalModel = LogisticModel.FromJsonElement(root, ReadFeatureNames(root), strategyName: "global");
+            }
+            else
+            {
+                // Legacy weights config
+                var model = JsonSerializer.Deserialize<StrategyEdgeModelConfig>(json)
+                            ?? new StrategyEdgeModelConfig();
+
+                foreach (var s in model.Strategies.Where(s => !string.IsNullOrWhiteSpace(s.Strategy)))
+                {
+                    _legacyWeights[s.Strategy] = s;
+                }
+            }
         }
 
         /// <summary>
-        /// Returns an "edge" score for the given strategy in the current diagnostics context.
-        /// If the strategy is not present in the model, returns 0.
+        /// Predicts edge probability P(win) for the given strategy using the most
+        /// appropriate model available. Returns 0.5 when no model is present.
         /// </summary>
-        public double GetEdgeScore(string strategyName, MarketDiagnostics diagnostics)
+        public double PredictProbability(string? strategyName, FeatureVector? features, MarketDiagnostics diagnostics)
         {
-            if (string.IsNullOrWhiteSpace(strategyName))
-                return 0.0;
+            if (!string.IsNullOrWhiteSpace(strategyName) &&
+                _perStrategyModels.TryGetValue(strategyName, out var model))
+            {
+                double p = model.Predict(features, diagnostics);
+                if (model.SampleSize > 0 && model.SampleSize < 50)
+                {
+                    // Down-weight sparsely trained models toward neutral.
+                    double weight = Math.Clamp(model.SampleSize / 50.0, 0.2, 1.0);
+                    p = 0.5 + (p - 0.5) * weight;
+                }
+                return p;
+            }
 
-            if (!_byStrategyName.TryGetValue(strategyName, out var cfg))
-                return 0.0;
+            if (_globalModel != null)
+                return _globalModel.Predict(features, diagnostics);
 
-            double vol = diagnostics.Volatility ?? 0.0;
-            double slope = diagnostics.TrendSlope ?? 0.0;
-            double regimeScore = diagnostics.RegimeScore ?? 0.0;
+            if (!string.IsNullOrWhiteSpace(strategyName) &&
+                _legacyWeights.TryGetValue(strategyName, out var legacy))
+            {
+                double vol = diagnostics.Volatility ?? 0.0;
+                double slope = diagnostics.TrendSlope ?? 0.0;
+                double regimeScore = diagnostics.RegimeScore ?? 0.0;
 
-            double score = cfg.Bias
-                           + cfg.VolatilityWeight * vol
-                           + cfg.TrendSlopeWeight * slope
-                           + cfg.RegimeScoreWeight * regimeScore;
+                double score = legacy.Bias
+                               + legacy.VolatilityWeight * vol
+                               + legacy.TrendSlopeWeight * slope
+                               + legacy.RegimeScoreWeight * regimeScore;
 
-            return score;
+                return Sigmoid(score);
+            }
+
+            return 0.5;
+        }
+
+        private static List<string> ReadFeatureNames(JsonElement root)
+        {
+            if (root.TryGetProperty("feature_names", out var fn) && fn.ValueKind == JsonValueKind.Array)
+            {
+                return fn.EnumerateArray()
+                    .Where(e => e.ValueKind == JsonValueKind.String)
+                    .Select(e => e.GetString() ?? string.Empty)
+                    .Where(s => !string.IsNullOrWhiteSpace(s))
+                    .ToList();
+            }
+
+            return new List<string>();
+        }
+
+        private static double Sigmoid(double x)
+        {
+            double ex = Math.Exp(Math.Clamp(x, -50, 50)); // guard overflow
+            return ex / (1.0 + ex);
+        }
+
+        private sealed class LogisticModel
+        {
+            public string Strategy { get; }
+            public double[] Intercept { get; }
+            public double[][] Coef { get; }
+            public IReadOnlyList<string> FeatureNames { get; }
+            public int SampleSize { get; }
+
+            private LogisticModel(string strategy, double[] intercept, double[][] coef, IReadOnlyList<string> featureNames, int sampleSize)
+            {
+                Strategy = strategy;
+                Intercept = intercept;
+                Coef = coef;
+                FeatureNames = featureNames;
+                SampleSize = sampleSize;
+            }
+
+            public static LogisticModel FromJsonElement(JsonElement el, IReadOnlyList<string> parentFeatureNames, string? strategyName = null)
+            {
+                string strategy = strategyName ?? (el.TryGetProperty("strategy", out var sEl) ? sEl.GetString() ?? string.Empty : string.Empty);
+
+                var featureNames = parentFeatureNames;
+                if (el.TryGetProperty("feature_names", out var fn) && fn.ValueKind == JsonValueKind.Array)
+                {
+                    featureNames = fn.EnumerateArray()
+                        .Where(e => e.ValueKind == JsonValueKind.String)
+                        .Select(e => e.GetString() ?? string.Empty)
+                        .Where(s => !string.IsNullOrWhiteSpace(s))
+                        .ToList();
+                }
+
+                double[][] coef = el.TryGetProperty("coef", out var cEl) && cEl.ValueKind == JsonValueKind.Array
+                    ? cEl.Deserialize<double[][]>() ?? Array.Empty<double[]>()
+                    : Array.Empty<double[]>();
+
+                double[] intercept = el.TryGetProperty("intercept", out var iEl) && iEl.ValueKind == JsonValueKind.Array
+                    ? iEl.Deserialize<double[]>() ?? Array.Empty<double>()
+                    : Array.Empty<double>();
+
+                int nSamples = 0;
+                if (el.TryGetProperty("n_samples", out var nEl) && nEl.TryGetInt32(out var n))
+                    nSamples = n;
+
+                return new LogisticModel(strategy, intercept, coef, featureNames, nSamples);
+            }
+
+            public double Predict(FeatureVector? features, MarketDiagnostics diagnostics)
+            {
+                if (Coef.Length == 0 || Coef[0].Length == 0 || FeatureNames.Count == 0)
+                    return 0.5;
+
+                var vector = BuildFeatureVector(features, diagnostics, FeatureNames, Coef[0].Length);
+
+                double logit = (Intercept.Length > 0 ? Intercept[0] : 0.0);
+                for (int i = 0; i < Coef[0].Length; i++)
+                {
+                    double w = Coef[0][i];
+                    double x = i < vector.Length ? vector[i] : 0.0;
+                    logit += w * x;
+                }
+
+                return Math.Clamp(Sigmoid(logit), 0.0001, 0.9999);
+            }
+
+            private static double[] BuildFeatureVector(FeatureVector? features, MarketDiagnostics diagnostics, IReadOnlyList<string> featureNames, int expectedLength)
+            {
+                double[] values = new double[expectedLength];
+
+                for (int i = 0; i < expectedLength; i++)
+                {
+                    string name = i < featureNames.Count ? featureNames[i] : string.Empty;
+                    values[i] = ResolveFeatureValue(name, features, diagnostics);
+                }
+
+                return values;
+            }
+
+            private static double ResolveFeatureValue(string name, FeatureVector? features, MarketDiagnostics diagnostics)
+            {
+                if (string.IsNullOrWhiteSpace(name))
+                    return 0.0;
+
+                string key = name.Trim().ToLowerInvariant();
+
+                double ReadValueByIndex(int index)
+                {
+                    if (features?.Values == null || index < 0 || index >= features.Values.Count)
+                        return 0.0;
+                    return features.Values[index];
+                }
+
+                switch (key)
+                {
+                    case "price":
+                        return ReadValueByIndex(0);
+                    case "mean":
+                        return ReadValueByIndex(1);
+                    case "std":
+                    case "stdev":
+                    case "stddev":
+                        return ReadValueByIndex(2);
+                    case "range":
+                        return ReadValueByIndex(3);
+                    case "volatility":
+                    case "vol":
+                        return diagnostics.Volatility ?? ReadValueByIndex(4);
+                    case "trendslope":
+                    case "slope":
+                        return diagnostics.TrendSlope ?? ReadValueByIndex(5);
+                    case "regimescore":
+                        return diagnostics.RegimeScore ?? ReadValueByIndex(6);
+                    case "heat":
+                    case "marketheat":
+                        return features?.Heat ?? 0.0;
+                    case "netresult":
+                        // Entry-time features should not leak outcome; keep neutral.
+                        return 0.0;
+                    default:
+                        return 0.0;
+                }
+            }
         }
 
         /// <summary>
-        /// Root JSON object.
+        /// Root JSON object for legacy weight config.
         /// {
         ///   "strategies": [
         ///     { "strategy": "Scalping", "bias": 0.1, "volatilityWeight": 0.5, ... }
@@ -163,7 +365,7 @@ namespace DerivSmartBotDesktop.Core
         }
 
         /// <summary>
-        /// Per-strategy configuration.
+        /// Per-strategy configuration (legacy weight-based edge).
         /// </summary>
         public sealed class StrategyEdgeConfig
         {
@@ -196,6 +398,8 @@ namespace DerivSmartBotDesktop.Core
             Tick tick,
             StrategyContext context,
             MarketDiagnostics diagnostics,
+            FeatureVector? features,
+            double marketHeatScore,
             IReadOnlyDictionary<string, StrategyStats> strategyStats,
             IReadOnlyList<StrategyDecision> candidates)
         {
@@ -221,6 +425,13 @@ namespace DerivSmartBotDesktop.Core
                     // Base confidence.
                     score += decision.Confidence * 100.0;
 
+                    // ML edge probability (Pwin) if available; default to neutral 0.5
+                    double edgeProb = _model.PredictProbability(decision.StrategyName, features, diagnostics);
+                    decision.EdgeProbability = edgeProb;
+
+                    // Center edge probability around 0.5 to create a symmetric score.
+                    score += (edgeProb - 0.5) * 120.0; // -60 .. +60
+
                     // Live stats as in RuleBasedStrategySelector.
                     if (!string.IsNullOrEmpty(decision.StrategyName) &&
                         strategyStats != null &&
@@ -228,13 +439,19 @@ namespace DerivSmartBotDesktop.Core
                     {
                         score += stats.WinRate;
                         score += stats.NetPL * 0.1;
+
+                        if (stats.TotalTrades >= 15)
+                        {
+                            // Reward sustained quality, penalize prolonged underperformance.
+                            score += (stats.WinRate - 50.0) * 0.8;
+                        }
                     }
 
-                    // ML-based edge score from JSON model.
-                    if (!string.IsNullOrEmpty(decision.StrategyName))
-                    {
-                        score += _model.GetEdgeScore(decision.StrategyName, diagnostics);
-                    }
+                    // Regime/heat-aware biasing; keeps ML aligned with current tape conditions.
+                    score += StrategySelectionScoring.ComputeRegimeBias(diagnostics, decision);
+
+                    // Market heat gating: avoid overheated or cold tape.
+                    score += StrategySelectionScoring.ComputeHeatBias(marketHeatScore);
 
                     if (score > bestScore)
                     {
@@ -248,6 +465,7 @@ namespace DerivSmartBotDesktop.Core
 
                 if (best.Confidence < 0.5) best.Confidence = 0.5;
                 if (best.Confidence > 0.99) best.Confidence = 0.99;
+                best.QualityScore = bestScore;
 
                 return best;
             }
@@ -256,6 +474,83 @@ namespace DerivSmartBotDesktop.Core
                 // If anything goes wrong in the ML path, fall back to rule-based behavior.
                 return _fallback.SelectBest(tick, context, diagnostics, strategyStats, candidates);
             }
+        }
+    }
+
+        internal static class StrategySelectionScoring
+        {
+        /// <summary>
+        /// Provides a small regime-aware bias to nudge strategy selection toward
+        /// approaches that fit the current tape. This is intentionally lightweight
+        /// so it can be combined with both rule-based and ML scoring.
+        /// </summary>
+            public static double ComputeRegimeBias(MarketDiagnostics diagnostics, StrategyDecision decision)
+            {
+                if (diagnostics == null || decision == null)
+                    return 0.0;
+
+            double bias = 0.0;
+            string name = decision.StrategyName ?? string.Empty;
+            string lname = name.ToLowerInvariant();
+
+            // Factor in how sure we are about the regime itself.
+            if (diagnostics.RegimeScore.HasValue)
+            {
+                double certainty = Math.Clamp(diagnostics.RegimeScore.Value, 0.0, 1.0);
+                bias += (certainty - 0.5) * 20.0; // maps [0,1] -> [-10,+10]
+
+                if (certainty < 0.35)
+                    bias -= 5.0; // do not lean in when the regime is fuzzy
+            }
+
+            switch (diagnostics.Regime)
+            {
+                case MarketRegime.TrendingUp:
+                case MarketRegime.TrendingDown:
+                    if (lname.Contains("trend") || lname.Contains("momentum") || lname.Contains("breakout"))
+                        bias += 12.0;
+                    if (lname.Contains("range") || lname.Contains("mean"))
+                        bias -= 8.0;
+                    break;
+
+                case MarketRegime.RangingLowVol:
+                case MarketRegime.RangingHighVol:
+                    if (lname.Contains("range") || lname.Contains("pullback") || lname.Contains("mean"))
+                        bias += 12.0;
+                    if (lname.Contains("breakout") || lname.Contains("momentum"))
+                        bias -= 6.0;
+                    break;
+
+                case MarketRegime.VolatileChoppy:
+                    if (lname.Contains("scalp") || lname.Contains("scalping"))
+                        bias += 8.0;
+                    if (lname.Contains("trend") && diagnostics.RegimeScore.GetValueOrDefault() < 0.65)
+                        bias -= 4.0;
+                    break;
+
+                default:
+                    bias -= 2.0; // unknown regime: stay conservative
+                    break;
+            }
+
+            return Math.Clamp(bias, -20.0, 20.0);
+        }
+
+        /// <summary>
+        /// Simple heat-based bias: penalize very cold or overheated markets, modestly reward mid-band heat.
+        /// </summary>
+        public static double ComputeHeatBias(double marketHeatScore)
+        {
+            double heat = Math.Clamp(marketHeatScore, 0.0, 100.0);
+
+            if (heat < 30.0)
+                return -10.0;
+            if (heat > 90.0)
+                return -12.0;
+            if (heat >= 50.0 && heat <= 75.0)
+                return 6.0;
+
+            return 0.0;
         }
     }
 }
