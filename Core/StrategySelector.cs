@@ -177,14 +177,7 @@ namespace DerivSmartBotDesktop.Core
             if (!string.IsNullOrWhiteSpace(strategyName) &&
                 _perStrategyModels.TryGetValue(strategyName, out var model))
             {
-                double p = model.Predict(features, diagnostics);
-                if (model.SampleSize > 0 && model.SampleSize < 50)
-                {
-                    // Down-weight sparsely trained models toward neutral.
-                    double weight = Math.Clamp(model.SampleSize / 50.0, 0.2, 1.0);
-                    p = 0.5 + (p - 0.5) * weight;
-                }
-                return p;
+                return model.Predict(features, diagnostics);
             }
 
             if (_globalModel != null)
@@ -234,15 +227,13 @@ namespace DerivSmartBotDesktop.Core
             public double[] Intercept { get; }
             public double[][] Coef { get; }
             public IReadOnlyList<string> FeatureNames { get; }
-            public int SampleSize { get; }
 
-            private LogisticModel(string strategy, double[] intercept, double[][] coef, IReadOnlyList<string> featureNames, int sampleSize)
+            private LogisticModel(string strategy, double[] intercept, double[][] coef, IReadOnlyList<string> featureNames)
             {
                 Strategy = strategy;
                 Intercept = intercept;
                 Coef = coef;
                 FeatureNames = featureNames;
-                SampleSize = sampleSize;
             }
 
             public static LogisticModel FromJsonElement(JsonElement el, IReadOnlyList<string> parentFeatureNames, string? strategyName = null)
@@ -267,11 +258,7 @@ namespace DerivSmartBotDesktop.Core
                     ? iEl.Deserialize<double[]>() ?? Array.Empty<double>()
                     : Array.Empty<double>();
 
-                int nSamples = 0;
-                if (el.TryGetProperty("n_samples", out var nEl) && nEl.TryGetInt32(out var n))
-                    nSamples = n;
-
-                return new LogisticModel(strategy, intercept, coef, featureNames, nSamples);
+                return new LogisticModel(strategy, intercept, coef, featureNames);
             }
 
             public double Predict(FeatureVector? features, MarketDiagnostics diagnostics)
@@ -450,9 +437,6 @@ namespace DerivSmartBotDesktop.Core
                     // Regime/heat-aware biasing; keeps ML aligned with current tape conditions.
                     score += StrategySelectionScoring.ComputeRegimeBias(diagnostics, decision);
 
-                    // Market heat gating: avoid overheated or cold tape.
-                    score += StrategySelectionScoring.ComputeHeatBias(marketHeatScore);
-
                     if (score > bestScore)
                     {
                         bestScore = score;
@@ -477,17 +461,17 @@ namespace DerivSmartBotDesktop.Core
         }
     }
 
-        internal static class StrategySelectionScoring
-        {
+    internal static class StrategySelectionScoring
+    {
         /// <summary>
         /// Provides a small regime-aware bias to nudge strategy selection toward
         /// approaches that fit the current tape. This is intentionally lightweight
         /// so it can be combined with both rule-based and ML scoring.
         /// </summary>
-            public static double ComputeRegimeBias(MarketDiagnostics diagnostics, StrategyDecision decision)
-            {
-                if (diagnostics == null || decision == null)
-                    return 0.0;
+        public static double ComputeRegimeBias(MarketDiagnostics diagnostics, StrategyDecision decision)
+        {
+            if (diagnostics == null || decision == null)
+                return 0.0;
 
             double bias = 0.0;
             string name = decision.StrategyName ?? string.Empty;
@@ -534,23 +518,6 @@ namespace DerivSmartBotDesktop.Core
             }
 
             return Math.Clamp(bias, -20.0, 20.0);
-        }
-
-        /// <summary>
-        /// Simple heat-based bias: penalize very cold or overheated markets, modestly reward mid-band heat.
-        /// </summary>
-        public static double ComputeHeatBias(double marketHeatScore)
-        {
-            double heat = Math.Clamp(marketHeatScore, 0.0, 100.0);
-
-            if (heat < 30.0)
-                return -10.0;
-            if (heat > 90.0)
-                return -12.0;
-            if (heat >= 50.0 && heat <= 75.0)
-                return 6.0;
-
-            return 0.0;
         }
     }
 }

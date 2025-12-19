@@ -18,7 +18,6 @@ namespace DerivSmartBotDesktop.Core
             MarketRegime regime,
             double? regimeScore,
             double marketHeatScore,
-            double currentBalance,
             StrategyStats? strategyStats,
             IReadOnlyList<TradeRecord> recentTrades,
             RiskSettings settings)
