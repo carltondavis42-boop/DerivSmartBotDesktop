@@ -456,7 +456,7 @@ namespace DerivSmartBotDesktop.Core
             catch
             {
                 // If anything goes wrong in the ML path, fall back to rule-based behavior.
-                return _fallback.SelectBest(tick, context, diagnostics, strategyStats, candidates);
+                return _fallback.SelectBest(tick, context, diagnostics, features, marketHeatScore, strategyStats, candidates);
             }
         }
     }
