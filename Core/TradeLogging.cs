@@ -64,7 +64,7 @@ namespace DerivSmartBotDesktop.Core
                             "Time,Symbol,Regime,Heat," +
                             "Price,Mean,Std,Range,Volatility,Slope,RegimeScore," +
                             "Stake,Profit,NetResult," +
-                            "Strategy,Signal,Confidence");
+                            "Strategy,Signal,Confidence,EdgeProbability");
                     }
 
                     // FeatureVector.Values layout from SimpleFeatureExtractor:
@@ -109,7 +109,8 @@ namespace DerivSmartBotDesktop.Core
 
                         Escape(decision.StrategyName ?? string.Empty),
                         Escape(signalText),
-                        decision.Confidence.ToString("F4")
+                        decision.Confidence.ToString("F4"),
+                        (decision.EdgeProbability ?? 0.0).ToString("F4")
                     ));
                 }
             }
