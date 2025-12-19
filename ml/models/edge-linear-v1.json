@@ -1,0 +1,19 @@
+{
+  "created_at": "2025-12-13T04:37:48.279336Z",
+  "model_type": "binary_logistic_regression",
+  "feature_names": [
+    "Price",
+    "Volatility",
+    "TrendSlope"
+  ],
+  "coef": [
+    [
+      -1.0340214517991232e-05,
+      0.47282358436816546,
+      0.15009060874508193
+    ]
+  ],
+  "intercept": [
+    -0.33788732038654773
+  ]
+}

@@ -1,0 +1,11 @@
+                precision    recall  f1-score   support
+
+RangingHighVol       1.00      0.11      0.19        19
+ RangingLowVol       0.00      0.00      0.00        11
+  TrendingDown       0.00      0.00      0.00        37
+    TrendingUp       0.50      0.91      0.64        57
+VolatileChoppy       0.39      0.74      0.51        19
+
+      accuracy                           0.48       143
+     macro avg       0.38      0.35      0.27       143
+  weighted avg       0.38      0.48      0.35       143
