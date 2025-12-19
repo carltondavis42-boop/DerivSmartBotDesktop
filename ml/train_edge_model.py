@@ -8,7 +8,19 @@ from typing import List, Dict, Tuple
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import classification_report, roc_auc_score
+from sklearn.metrics import classification_report, roc_auc_score, brier_score_loss
+
+
+META_COLUMNS = {
+    "Time",
+    "Symbol",
+    "Strategy",
+    "Signal",
+    "Direction",
+    "Regime",
+    "Profit",
+    "NetResult",
+}
 
 
 META_COLUMNS = {
@@ -152,6 +164,10 @@ def main():
     print("Evaluating on full dataset (for sanity check)...")
     report = evaluate_edge_model(model, X, y)
     print(report)
+
+    # Calibration (Platt scaling) on global model
+    global_probs = model.predict_proba(X)[:, 1]
+    global_calibration = _fit_platt_scaler(global_probs, y)
 
     os.makedirs(args.output_dir, exist_ok=True)
     report_path = os.path.join(args.output_dir, "edge-training-report.txt")
