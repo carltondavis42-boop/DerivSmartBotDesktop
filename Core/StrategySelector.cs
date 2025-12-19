@@ -117,8 +117,6 @@ namespace DerivSmartBotDesktop.Core
         private readonly Dictionary<string, LogisticModel> _perStrategyModels = new(StringComparer.OrdinalIgnoreCase);
         private readonly LogisticModel? _globalModel;
         private readonly Dictionary<string, StrategyEdgeConfig> _legacyWeights = new(StringComparer.OrdinalIgnoreCase);
-        private readonly string _modelVersion;
-        private readonly IReadOnlyList<string> _featureSchema;
 
         public JsonStrategyEdgeModel(string jsonPath)
         {
@@ -128,17 +126,13 @@ namespace DerivSmartBotDesktop.Core
 
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
-            _modelVersion = root.TryGetProperty("model_version", out var mv)
-                ? mv.GetString() ?? string.Empty
-                : string.Empty;
-            _featureSchema = ReadFeatureNames(root);
             string modelType = root.TryGetProperty("model_type", out var mt)
                 ? mt.GetString() ?? string.Empty
                 : string.Empty;
 
             if (string.Equals(modelType, "per_strategy_logistic_regression", StringComparison.OrdinalIgnoreCase))
             {
-                var featureNames = _featureSchema;
+                var featureNames = ReadFeatureNames(root);
 
                 if (root.TryGetProperty("strategies", out var strategiesEl) && strategiesEl.ValueKind == JsonValueKind.Array)
                 {
@@ -182,22 +176,12 @@ namespace DerivSmartBotDesktop.Core
         {
             if (!string.IsNullOrWhiteSpace(strategyName) &&
                 _perStrategyModels.TryGetValue(strategyName, out var model))
-        {
-            double p = model.Predict(features, diagnostics);
-            if (model.SampleSize > 0 && model.SampleSize < 50)
             {
-                // Down-weight sparsely trained models toward neutral.
-                double weight = Math.Clamp(model.SampleSize / 50.0, 0.2, 1.0);
-                p = 0.5 + (p - 0.5) * weight;
+                return model.Predict(features, diagnostics);
             }
-            return model.ApplyCalibration(p);
-        }
 
             if (_globalModel != null)
-            {
-                double p = _globalModel.Predict(features, diagnostics);
-                return _globalModel.ApplyCalibration(p);
-            }
+                return _globalModel.Predict(features, diagnostics);
 
             if (!string.IsNullOrWhiteSpace(strategyName) &&
                 _legacyWeights.TryGetValue(strategyName, out var legacy))
@@ -243,19 +227,13 @@ namespace DerivSmartBotDesktop.Core
             public double[] Intercept { get; }
             public double[][] Coef { get; }
             public IReadOnlyList<string> FeatureNames { get; }
-            public int SampleSize { get; }
-            private readonly double? _calibrationIntercept;
-            private readonly double? _calibrationCoef;
 
-            private LogisticModel(string strategy, double[] intercept, double[][] coef, IReadOnlyList<string> featureNames, int sampleSize, double? calibrationIntercept, double? calibrationCoef)
+            private LogisticModel(string strategy, double[] intercept, double[][] coef, IReadOnlyList<string> featureNames)
             {
                 Strategy = strategy;
                 Intercept = intercept;
                 Coef = coef;
                 FeatureNames = featureNames;
-                SampleSize = sampleSize;
-                _calibrationIntercept = calibrationIntercept;
-                _calibrationCoef = calibrationCoef;
             }
 
             public static LogisticModel FromJsonElement(JsonElement el, IReadOnlyList<string> parentFeatureNames, string? strategyName = null)
@@ -280,21 +258,7 @@ namespace DerivSmartBotDesktop.Core
                     ? iEl.Deserialize<double[]>() ?? Array.Empty<double>()
                     : Array.Empty<double>();
 
-                int nSamples = 0;
-                if (el.TryGetProperty("n_samples", out var nEl) && nEl.TryGetInt32(out var n))
-                    nSamples = n;
-
-                double? calIntercept = null;
-                double? calCoef = null;
-                if (el.TryGetProperty("calibration", out var calEl) && calEl.ValueKind == JsonValueKind.Object)
-                {
-                    if (calEl.TryGetProperty("intercept", out var ci) && ci.ValueKind == JsonValueKind.Number && ci.TryGetDouble(out var civ))
-                        calIntercept = civ;
-                    if (calEl.TryGetProperty("coef", out var cc) && cc.ValueKind == JsonValueKind.Number && cc.TryGetDouble(out var ccv))
-                        calCoef = ccv;
-                }
-
-                return new LogisticModel(strategy, intercept, coef, featureNames, nSamples, calIntercept, calCoef);
+                return new LogisticModel(strategy, intercept, coef, featureNames);
             }
 
             public double Predict(FeatureVector? features, MarketDiagnostics diagnostics)
@@ -371,17 +335,6 @@ namespace DerivSmartBotDesktop.Core
                     default:
                         return 0.0;
                 }
-            }
-
-            public double ApplyCalibration(double prob)
-            {
-                prob = Math.Clamp(prob, 0.0001, 0.9999);
-                if (_calibrationIntercept.HasValue && _calibrationCoef.HasValue)
-                {
-                    double z = _calibrationIntercept.Value + _calibrationCoef.Value * prob;
-                    prob = Sigmoid(z);
-                }
-                return Math.Clamp(prob, 0.0001, 0.9999);
             }
         }
 
@@ -484,9 +437,6 @@ namespace DerivSmartBotDesktop.Core
                     // Regime/heat-aware biasing; keeps ML aligned with current tape conditions.
                     score += StrategySelectionScoring.ComputeRegimeBias(diagnostics, decision);
 
-                    // Market heat gating: avoid overheated or cold tape.
-                    score += StrategySelectionScoring.ComputeHeatBias(marketHeatScore);
-
                     if (score > bestScore)
                     {
                         bestScore = score;
@@ -511,17 +461,17 @@ namespace DerivSmartBotDesktop.Core
         }
     }
 
-        internal static class StrategySelectionScoring
-        {
+    internal static class StrategySelectionScoring
+    {
         /// <summary>
         /// Provides a small regime-aware bias to nudge strategy selection toward
         /// approaches that fit the current tape. This is intentionally lightweight
         /// so it can be combined with both rule-based and ML scoring.
         /// </summary>
-            public static double ComputeRegimeBias(MarketDiagnostics diagnostics, StrategyDecision decision)
-            {
-                if (diagnostics == null || decision == null)
-                    return 0.0;
+        public static double ComputeRegimeBias(MarketDiagnostics diagnostics, StrategyDecision decision)
+        {
+            if (diagnostics == null || decision == null)
+                return 0.0;
 
             double bias = 0.0;
             string name = decision.StrategyName ?? string.Empty;
@@ -568,23 +518,6 @@ namespace DerivSmartBotDesktop.Core
             }
 
             return Math.Clamp(bias, -20.0, 20.0);
-        }
-
-        /// <summary>
-        /// Simple heat-based bias: penalize very cold or overheated markets, modestly reward mid-band heat.
-        /// </summary>
-        public static double ComputeHeatBias(double marketHeatScore)
-        {
-            double heat = Math.Clamp(marketHeatScore, 0.0, 100.0);
-
-            if (heat < 30.0)
-                return -10.0;
-            if (heat > 90.0)
-                return -12.0;
-            if (heat >= 50.0 && heat <= 75.0)
-                return 6.0;
-
-            return 0.0;
         }
     }
 }

@@ -18,7 +18,6 @@ namespace DerivSmartBotDesktop.Core
             MarketRegime regime,
             double? regimeScore,
             double marketHeatScore,
-            double currentBalanceForCap = 0.0,
             StrategyStats? strategyStats,
             IReadOnlyList<TradeRecord> recentTrades,
             RiskSettings settings)
@@ -128,9 +127,9 @@ namespace DerivSmartBotDesktop.Core
             }
 
             // 5) Enforce balance-based cap if configured.
-            if (settings.MaxStakeAsBalanceFraction > 0 && currentBalanceForCap > 0)
+            if (settings.MaxStakeAsBalanceFraction > 0 && currentBalance > 0)
             {
-                double maxByBalance = currentBalanceForCap * settings.MaxStakeAsBalanceFraction;
+                double maxByBalance = currentBalance * settings.MaxStakeAsBalanceFraction;
                 if (stake > maxByBalance)
                     stake = maxByBalance;
             }

@@ -23,6 +23,18 @@ META_COLUMNS = {
 }
 
 
+META_COLUMNS = {
+    "Time",
+    "Symbol",
+    "Strategy",
+    "Signal",
+    "Direction",
+    "Regime",
+    "Profit",
+    "NetResult",
+}
+
+
 def load_trade_logs(log_dir: str) -> pd.DataFrame:
     pattern = os.path.join(log_dir, "trades_*.csv")
     files = sorted(glob.glob(pattern))
@@ -99,56 +111,31 @@ def export_edge_model(model: LogisticRegression, out_dir: str):
     return os.path.join(out_dir, "edge-linear-v1.json")
 
 
-def _fit_platt_scaler(probs: np.ndarray, y: np.ndarray) -> Dict:
-    """
-    Fit a simple Platt scaling model on predicted probabilities.
-    Returns dict with intercept, coef, and sample count.
-    """
-    try:
-        clf = LogisticRegression(max_iter=200)
-        clf.fit(probs.reshape(-1, 1), y)
-        return {
-            "method": "platt",
-            "intercept": float(clf.intercept_[0]),
-            "coef": float(clf.coef_[0][0]),
-            "n_samples": int(len(y))
-        }
-    except Exception:
-        return {}
-
-
 def export_per_strategy_models(global_model: LogisticRegression,
                                strategy_models: Dict[str, LogisticRegression],
                                feature_names: List[str],
                                out_dir: str,
                                n_samples_total: int,
-                               n_samples_per_strategy: Dict[str, int],
-                               calibration: Dict,
-                               per_strategy_calibration: Dict[str, Dict]):
+                               n_samples_per_strategy: Dict[str, int]):
     os.makedirs(out_dir, exist_ok=True)
     config = {
         "created_at": datetime.utcnow().isoformat() + "Z",
         "model_type": "per_strategy_logistic_regression",
         "feature_names": feature_names,
-        "model_version": "edge-linear-v2",
-        "feature_schema": feature_names,
         "global_model": {
             "coef": global_model.coef_.tolist(),
             "intercept": global_model.intercept_.tolist(),
             "n_samples": n_samples_total,
-            "calibration": calibration,
         },
         "strategies": []
     }
 
     for name, model in strategy_models.items():
-        cal = per_strategy_calibration.get(name, {})
         config["strategies"].append({
             "strategy": name,
             "coef": model.coef_.tolist(),
             "intercept": model.intercept_.tolist(),
             "n_samples": n_samples_per_strategy.get(name, 0),
-            "calibration": cal,
         })
 
     out_path = os.path.join(out_dir, "edge-linear-v1.json")
@@ -191,7 +178,6 @@ def main():
     # Train per-strategy models where we have enough data
     strategy_models: Dict[str, LogisticRegression] = {}
     n_samples_per_strategy: Dict[str, int] = {}
-    strategy_calibration: Dict[str, Dict] = {}
     for strategy, group in df.groupby("Strategy"):
         if len(group) < 50:
             continue
@@ -199,11 +185,6 @@ def main():
         lm = train_edge_model(X_s, y_s)
         strategy_models[strategy] = lm
         n_samples_per_strategy[strategy] = len(group)
-        try:
-            probs_s = lm.predict_proba(X_s)[:, 1]
-            strategy_calibration[strategy] = _fit_platt_scaler(probs_s, y_s)
-        except Exception:
-            strategy_calibration[strategy] = {}
 
     export_per_strategy_models(
         global_model=model,
@@ -212,8 +193,6 @@ def main():
         out_dir=args.output_dir,
         n_samples_total=len(df),
         n_samples_per_strategy=n_samples_per_strategy,
-        calibration=global_calibration,
-        per_strategy_calibration=strategy_calibration,
     )
 
 

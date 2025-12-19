@@ -3237,7 +3237,6 @@ private void OnTickReceived(Tick tick)
                 diagnosticsSnapshot.Regime,
                 diagnosticsSnapshot.RegimeScore,
                 MarketHeatScore,
-                _balance,
                 strategyStats,
                 recentTradesSnapshot,
                 riskSettings);
