@@ -440,30 +440,30 @@ namespace DerivSmartBotDesktop
                 EndPoint = new Point(1, 1),
                 GradientStops = new GradientStopCollection
                 {
-                    new GradientStop((Color)ColorConverter.ConvertFromString(isLight ? "#F3F6FA" : "#0E131A"), 0),
-                    new GradientStop((Color)ColorConverter.ConvertFromString(isLight ? "#EEF2F7" : "#121925"), 0.6),
+                    new GradientStop((Color)ColorConverter.ConvertFromString(isLight ? "#F6F7FB" : "#0E131A"), 0),
+                    new GradientStop((Color)ColorConverter.ConvertFromString(isLight ? "#F2F4F9" : "#121925"), 0.6),
                     new GradientStop((Color)ColorConverter.ConvertFromString(isLight ? "#F8FAFC" : "#0B1118"), 1)
                 }
             };
 
             SetBrushColor(newResources, "PanelBrush", isLight ? "#FFFFFF" : "#121A24");
-            SetBrushColor(newResources, "PanelBorderBrush", isLight ? "#D3DAE3" : "#243244");
-            SetBrushColor(newResources, "HeaderBrush", isLight ? "#F7F9FC" : "#0F1722");
-            SetBrushColor(newResources, "BadgeBrush", isLight ? "#EDF2F7" : "#182231");
-            SetBrushColor(newResources, "BadgeBorderBrush", isLight ? "#D3DAE3" : "#2B3A4F");
-            SetBrushColor(newResources, "InputBackgroundBrush", isLight ? "#F7FAFD" : "#0E1620");
+            SetBrushColor(newResources, "PanelBorderBrush", isLight ? "#E6E9F0" : "#243244");
+            SetBrushColor(newResources, "HeaderBrush", isLight ? "#F9FAFD" : "#0F1722");
+            SetBrushColor(newResources, "BadgeBrush", isLight ? "#F1F3F8" : "#182231");
+            SetBrushColor(newResources, "BadgeBorderBrush", isLight ? "#E1E6EF" : "#2B3A4F");
+            SetBrushColor(newResources, "InputBackgroundBrush", isLight ? "#F7F8FC" : "#0E1620");
             SetBrushColor(newResources, "TableRowBrush", isLight ? "#FFFFFF" : "#121B26");
-            SetBrushColor(newResources, "TableHeaderBrush", isLight ? "#EEF2F7" : "#0F1822");
-            SetBrushColor(newResources, "LogBackgroundBrush", isLight ? "#F7FAFD" : "#0E1620");
-            SetBrushColor(newResources, "ButtonBrush", isLight ? "#E9EEF4" : "#1A2533");
-            SetBrushColor(newResources, "ButtonBorderBrush", isLight ? "#D3DAE3" : "#2B3A4F");
+            SetBrushColor(newResources, "TableHeaderBrush", isLight ? "#F1F3F8" : "#0F1822");
+            SetBrushColor(newResources, "LogBackgroundBrush", isLight ? "#F7F8FC" : "#0E1620");
+            SetBrushColor(newResources, "ButtonBrush", isLight ? "#F1F3F8" : "#1A2533");
+            SetBrushColor(newResources, "ButtonBorderBrush", isLight ? "#E1E6EF" : "#2B3A4F");
 
-            SetBrushColor(newResources, "AccentBrush", isLight ? "#1F6FEB" : "#3BAFDA");
-            SetBrushColor(newResources, "AccentSoftBrush", isLight ? "#DCE8F7" : "#1C2A35");
-            SetBrushColor(newResources, "PositiveBrush", isLight ? "#1B8F5A" : "#3CCB90");
-            SetBrushColor(newResources, "NegativeBrush", isLight ? "#C2454F" : "#E35D6A");
-            SetBrushColor(newResources, "TextPrimaryBrush", isLight ? "#0F172A" : "#F1F5F9");
-            SetBrushColor(newResources, "TextSecondaryBrush", isLight ? "#4B5563" : "#A9B4C4");
+            SetBrushColor(newResources, "AccentBrush", isLight ? "#5B5CE2" : "#3BAFDA");
+            SetBrushColor(newResources, "AccentSoftBrush", isLight ? "#ECECFF" : "#1C2A35");
+            SetBrushColor(newResources, "PositiveBrush", isLight ? "#24B47E" : "#3CCB90");
+            SetBrushColor(newResources, "NegativeBrush", isLight ? "#E05252" : "#E35D6A");
+            SetBrushColor(newResources, "TextPrimaryBrush", isLight ? "#1F2430" : "#F1F5F9");
+            SetBrushColor(newResources, "TextSecondaryBrush", isLight ? "#6B7280" : "#A9B4C4");
 
             Resources = newResources;
         }
