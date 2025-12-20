@@ -1,52 +1,69 @@
-﻿<Window x:Class="DerivSmartBotDesktop.MainWindow"
+<Window x:Class="DerivSmartBotDesktop.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:DerivSmartBotDesktop"
         xmlns:conv="clr-namespace:DerivSmartBotDesktop.Converters"
         Title="Deriv Smart Bot"
-        Height="700"
-        Width="1150"
-        WindowStartupLocation="CenterScreen">
+        Height="760"
+        Width="1200"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource ShellBackgroundBrush}">
     <Window.Resources>
-        <!-- Existing converters -->
         <conv:BoolToTextConnectedConverter x:Key="BoolToText_Connected" />
         <conv:BoolToTextBotConverter x:Key="BoolToText_Bot" />
 
-        <!-- Colors -->
-        <SolidColorBrush x:Key="ShellBackgroundBrush" Color="#0B1015"/>
-        <SolidColorBrush x:Key="CardBackgroundBrush" Color="#151A21"/>
-        <SolidColorBrush x:Key="CardBorderBrush" Color="#262A33"/>
-        <SolidColorBrush x:Key="AccentBrush" Color="#2F80ED"/>
-        <SolidColorBrush x:Key="AccentSoftBrush" Color="#1F2933"/>
-        <SolidColorBrush x:Key="PositiveBrush" Color="#22C55E"/>
-        <SolidColorBrush x:Key="NegativeBrush" Color="#EF4444"/>
-        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F9FAFB"/>
-        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#9CA3AF"/>
+        <LinearGradientBrush x:Key="ShellBackgroundBrush" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#121720" Offset="0" />
+            <GradientStop Color="#19212C" Offset="0.6" />
+            <GradientStop Color="#141A24" Offset="1" />
+        </LinearGradientBrush>
+        <SolidColorBrush x:Key="PanelBrush" Color="#1B2430"/>
+        <SolidColorBrush x:Key="PanelBorderBrush" Color="#2A3646"/>
+        <SolidColorBrush x:Key="HeaderBrush" Color="#1A222D"/>
+        <SolidColorBrush x:Key="BadgeBrush" Color="#202B38"/>
+        <SolidColorBrush x:Key="BadgeBorderBrush" Color="#2C3A4B"/>
+        <SolidColorBrush x:Key="InputBackgroundBrush" Color="#161E2A"/>
+        <SolidColorBrush x:Key="TableRowBrush" Color="#17212C"/>
+        <SolidColorBrush x:Key="TableHeaderBrush" Color="#15202B"/>
+        <SolidColorBrush x:Key="LogBackgroundBrush" Color="#151E2A"/>
+        <SolidColorBrush x:Key="ButtonBrush" Color="#223142"/>
+        <SolidColorBrush x:Key="ButtonBorderBrush" Color="#2A3646"/>
 
-        <!-- GroupBox as "card" -->
+        <SolidColorBrush x:Key="AccentBrush" Color="#63B8A4"/>
+        <SolidColorBrush x:Key="AccentSoftBrush" Color="#223235"/>
+        <SolidColorBrush x:Key="PositiveBrush" Color="#7AD4A6"/>
+        <SolidColorBrush x:Key="NegativeBrush" Color="#E38B8B"/>
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#E7EDF5"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#B7C3D1"/>
+
+        <Style TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Bahnschrift"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+
         <Style TargetType="GroupBox">
-            <Setter Property="Margin" Value="0,0,0,10"/>
-            <Setter Property="Padding" Value="8"/>
-            <Setter Property="Background" Value="{StaticResource CardBackgroundBrush}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}"/>
+            <Setter Property="Margin" Value="0,0,0,12"/>
+            <Setter Property="Padding" Value="12"/>
+            <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
-            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="FontFamily" Value="Bahnschrift"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="GroupBox">
                         <Border Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="8">
+                                CornerRadius="10">
                             <DockPanel>
                                 <Border DockPanel.Dock="Top"
-                                        Background="#111827"
-                                        CornerRadius="8,8,0,0"
-                                        Padding="4,2,4,4">
+                                        Background="{DynamicResource HeaderBrush}"
+                                        CornerRadius="10,10,0,0"
+                                        Padding="10,6">
                                     <ContentPresenter ContentSource="Header"
                                                       RecognizesAccessKey="True"
-                                                      Margin="2,0,0,0"
                                                       HorizontalAlignment="Left"
                                                       VerticalAlignment="Center" />
                                 </Border>
@@ -60,62 +77,113 @@
             </Setter>
         </Style>
 
-        <!-- KPI label/value -->
-        <Style x:Key="KpiLabelText" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+        <Style x:Key="LabelText" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
             <Setter Property="FontSize" Value="11"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
         </Style>
 
-        <Style x:Key="KpiValueText" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+        <Style x:Key="ValueText" TargetType="TextBlock">
             <Setter Property="FontSize" Value="18"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
+        </Style>
+
+        <Style x:Key="KpiCard" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="12"/>
+        </Style>
+
+        <Style TargetType="Button">
+            <Setter Property="FontFamily" Value="Bahnschrift"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Background" Value="{DynamicResource ButtonBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ButtonBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="#0B0F14"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+
+        <Style x:Key="GhostButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+
+        <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="#34171B"/>
+            <Setter Property="Foreground" Value="#FCA5A5"/>
+            <Setter Property="BorderBrush" Value="#4B1E24"/>
+        </Style>
+
+        <Style TargetType="TextBox">
+            <Setter Property="FontFamily" Value="Bahnschrift"/>
+            <Setter Property="Background" Value="{DynamicResource InputBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,4"/>
+        </Style>
+
+        <Style TargetType="ComboBox">
+            <Setter Property="FontFamily" Value="Bahnschrift"/>
+            <Setter Property="Background" Value="{DynamicResource InputBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="6,3"/>
+        </Style>
+
+        <Style TargetType="DataGridRow">
+            <Setter Property="FontFamily" Value="Bahnschrift"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Background" Value="{DynamicResource TableRowBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+        </Style>
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="{DynamicResource TableHeaderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+            <Setter Property="FontFamily" Value="Bahnschrift"/>
+            <Setter Property="FontSize" Value="12"/>
         </Style>
     </Window.Resources>
 
-    <DockPanel Background="{StaticResource ShellBackgroundBrush}" Margin="10">
-
-        <!-- Top bar -->
+    <DockPanel Background="{DynamicResource ShellBackgroundBrush}" Margin="12">
         <Border DockPanel.Dock="Top"
-                Background="#111827"
-                CornerRadius="10"
-                Padding="10"
-                BorderBrush="#1F2937"
-                BorderThickness="1">
+                Background="{DynamicResource HeaderBrush}"
+                CornerRadius="12"
+                BorderBrush="{DynamicResource PanelBorderBrush}"
+                BorderThickness="1"
+                Padding="12">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-                <!-- App title + status -->
-                <StackPanel Orientation="Horizontal"
-                            VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Grid.Row="0">
                     <TextBlock Text="Deriv Smart Bot"
-                               FontSize="20"
+                               FontSize="22"
                                FontWeight="Bold"
-                               Foreground="{StaticResource TextPrimaryBrush}"
                                Margin="0,0,12,0"/>
 
-                    <!-- Connection badge -->
                     <Border CornerRadius="999"
-                            Padding="8,2"
-                            Margin="10,0,0,0">
-                        <Border.Style>
-                            <Style TargetType="Border">
-                                <Setter Property="Background" Value="#1F2937"/>
-                                <Setter Property="BorderBrush" Value="#374151"/>
-                                <Setter Property="BorderThickness" Value="1"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsConnected}" Value="True">
-                                        <Setter Property="Background" Value="#064E3B"/>
-                                        <Setter Property="BorderBrush" Value="#16A34A"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Border.Style>
+                            Padding="10,4"
+                            Background="{DynamicResource BadgeBrush}"
+                            BorderBrush="{DynamicResource BadgeBorderBrush}"
+                            BorderThickness="1">
                         <StackPanel Orientation="Horizontal">
                             <Ellipse Width="8" Height="8" Margin="0,0,6,0">
                                 <Ellipse.Style>
@@ -123,24 +191,22 @@
                                         <Setter Property="Fill" Value="#6B7280"/>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsConnected}" Value="True">
-                                                <Setter Property="Fill" Value="#22C55E"/>
+                                                <Setter Property="Fill" Value="{DynamicResource PositiveBrush}"/>
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
                                 </Ellipse.Style>
                             </Ellipse>
                             <TextBlock Text="{Binding IsConnected, Converter={StaticResource BoolToText_Connected}}"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
                                        FontSize="12"/>
                         </StackPanel>
                     </Border>
 
-                    <!-- Bot status badge -->
                     <Border CornerRadius="999"
-                            Padding="8,2"
-                            Margin="5,0,0,0"
-                            Background="#1F2937"
-                            BorderBrush="#374151"
+                            Padding="10,4"
+                            Margin="8,0,0,0"
+                            Background="{DynamicResource BadgeBrush}"
+                            BorderBrush="{DynamicResource BadgeBorderBrush}"
                             BorderThickness="1">
                         <StackPanel Orientation="Horizontal">
                             <Ellipse Width="8" Height="8" Margin="0,0,6,0">
@@ -149,463 +215,280 @@
                                         <Setter Property="Fill" Value="#6B7280"/>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsRunning}" Value="True">
-                                                <Setter Property="Fill" Value="#2DD4BF"/>
+                                                <Setter Property="Fill" Value="{DynamicResource AccentBrush}"/>
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
                                 </Ellipse.Style>
                             </Ellipse>
                             <TextBlock Text="{Binding IsRunning, Converter={StaticResource BoolToText_Bot}}"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
                                        FontSize="12"/>
                         </StackPanel>
                     </Border>
 
-                    <TextBlock Text="{Binding StatusText}"
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               Margin="10,0,0,0"
-                               VerticalAlignment="Center"
-                               FontSize="12"/>
+                    <Border CornerRadius="999"
+                            Padding="10,4"
+                            Margin="8,0,0,0"
+                            Background="{DynamicResource BadgeBrush}"
+                            BorderBrush="{DynamicResource BadgeBorderBrush}"
+                            BorderThickness="1">
+                        <TextBlock Text="{Binding ActiveSymbol, StringFormat=Symbol: {0}}"
+                                   FontSize="12"/>
+                    </Border>
+
                 </StackPanel>
 
-                <!-- Controls -->
-                <StackPanel Grid.Column="1"
-                            Orientation="Horizontal"
-                            VerticalAlignment="Center">
-                    <TextBlock Text="Profile:"
-                               VerticalAlignment="Center"
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               Margin="0,0,4,0" />
+                <TextBlock Grid.Row="1"
+                           Text="{Binding StatusText}"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           TextWrapping="Wrap"
+                           Margin="0,6,0,0"/>
 
-                    <ComboBox Width="150"
-                              ItemsSource="{Binding Profiles}"
-                              SelectedItem="{Binding SelectedProfile}"
+                <StackPanel Grid.Column="1" Grid.RowSpan="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <CheckBox Content="Light theme"
+                              Foreground="{DynamicResource TextSecondaryBrush}"
                               VerticalAlignment="Center"
-                              Margin="0,0,8,0"/>
-
-                    <CheckBox Content="Auto-start"
-                              IsChecked="{Binding AutoStartEnabled}"
-                              Foreground="{StaticResource TextPrimaryBrush}"
-                              VerticalAlignment="Center"
-                              Margin="0,0,16,0"/>
-
-                    <CheckBox Content="Auto symbol rotation"
-                              IsChecked="{Binding AutoSymbolRotationEnabled}"
-                              Foreground="{StaticResource TextPrimaryBrush}"
-                              VerticalAlignment="Center"
-                              Margin="0,0,8,0"/>
-
-                    <CheckBox Content="Relax env filters (test)"
-                              IsChecked="{Binding RelaxEnvironmentFiltersForTesting}"
-                              Foreground="{StaticResource TextPrimaryBrush}"
-                              VerticalAlignment="Center"
-                              Margin="0,0,8,0"
-                              ToolTip="When checked, Volatile/edge regimes only raise warnings instead of blocking trades. Use on demo / testing only."/>
-
-
-                    <TextBlock Text="Watchlist:"
-                               VerticalAlignment="Center"
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               Margin="0,0,4,0"/>
-
-                    <TextBox Width="220"
-                             Text="{Binding WatchlistText, UpdateSourceTrigger=PropertyChanged}"
-                             VerticalAlignment="Center"
-                             Margin="0,0,4,0"
-                             ToolTip="Comma-separated symbols e.g. R_50,R_75,R_100"/>
-
-                    <Button Content="Apply"
-                            Width="70"
-                            Margin="0,0,12,0"
-                            Click="ApplyWatchlist_Click"/>
-
-                    <Button Content="Start Bot"
-                            Width="100"
-                            Margin="0,0,6,0"
-                            Click="StartBot_Click"/>
-                    <Button Content="Stop Bot"
-                            Width="100"
-                            Margin="0,0,6,0"
-                            Click="StopBot_Click"/>
-                    <Button Content="Settings..."
-                            Width="90"
-                            Click="Settings_Click"/>
+                              Margin="0,0,10,0"
+                              Checked="LightTheme_Checked"
+                              Unchecked="LightTheme_Unchecked"/>
+                    <Button Content="Settings"
+                            Style="{StaticResource GhostButton}"
+                            Click="Settings_Click"
+                            Margin="0,0,0,0"/>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Bottom Log -->
-        <Expander DockPanel.Dock="Bottom"
-                  Header="Session Log"
-                  IsExpanded="True"
-                  Margin="0,10,0,0">
-            <Border Background="#05070A"
-                    BorderBrush="{StaticResource CardBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="4">
-                <TextBox x:Name="LogTextBox"
-                         Text="{Binding CombinedLog, Mode=OneWay}"
-                         IsReadOnly="True"
-                         FontFamily="Consolas"
-                         FontSize="12"
-                         VerticalScrollBarVisibility="Auto"
-                         HorizontalScrollBarVisibility="Auto"
-                         TextWrapping="NoWrap"
-                         Background="#05070A"
-                         Foreground="{StaticResource TextPrimaryBrush}"
-                         BorderThickness="0"
-                         AcceptsReturn="True"
-                         TextChanged="LogTextBox_TextChanged"/>
-            </Border>
-        </Expander>
-
-        <!-- Main content -->
-        <Grid Margin="0,10,0,0">
+        <Grid Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="300" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <!-- KPI row -->
-            <Grid Grid.Row="0" Margin="0,0,0,10">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-
-                <!-- Balance -->
-                <Border Grid.Column="0"
-                        Background="{StaticResource CardBackgroundBrush}"
-                        BorderBrush="{StaticResource CardBorderBrush}"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        Padding="8"
-                        Margin="0,0,10,0">
+            <StackPanel Grid.Column="0" Grid.RowSpan="3">
+                <GroupBox>
+                    <GroupBox.Header>
+                        <TextBlock Text="Session" FontWeight="SemiBold"/>
+                    </GroupBox.Header>
                     <StackPanel>
-                        <TextBlock Text="Balance"
-                                   Style="{StaticResource KpiLabelText}"/>
-                        <TextBlock Text="{Binding Balance, StringFormat={}{0:F2}}"
-                                   Style="{StaticResource KpiValueText}"/>
-                    </StackPanel>
-                </Border>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <Button Content="Start" Style="{StaticResource PrimaryButton}" Width="80" Margin="0,0,6,0" Click="StartBot_Click"/>
+                            <Button Content="Stop" Style="{StaticResource DangerButton}" Width="80" Margin="0,0,6,0" Click="StopBot_Click"/>
+                            <Button Content="Clear Pause" Style="{StaticResource GhostButton}" Width="100" Click="ClearAutoPause_Click"/>
+                        </StackPanel>
 
-                <!-- Today's P/L -->
-                <Border Grid.Column="1"
-                        Background="{StaticResource CardBackgroundBrush}"
-                        BorderBrush="{StaticResource CardBorderBrush}"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        Padding="8"
-                        Margin="0,0,10,0">
-                    <StackPanel>
-                        <TextBlock Text="Today's P/L"
-                                   Style="{StaticResource KpiLabelText}"/>
-                        <TextBlock Text="{Binding TodaysPL, StringFormat={}{0:F2}}"
-                                   Style="{StaticResource KpiValueText}"/>
-                    </StackPanel>
-                </Border>
+                        <Expander Header="Session details" IsExpanded="False">
+                            <StackPanel Margin="0,6,0,0">
+                                <TextBlock Text="Auto-pause" Style="{StaticResource LabelText}"/>
+                                <TextBlock Text="{Binding AutoPauseReasonText}"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,8"/>
 
-                <!-- Win rate -->
-                <Border Grid.Column="2"
-                        Background="{StaticResource CardBackgroundBrush}"
-                        BorderBrush="{StaticResource CardBorderBrush}"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        Padding="8"
-                        Margin="0,0,10,0">
-                    <StackPanel>
-                        <TextBlock Text="Win rate"
-                                   Style="{StaticResource KpiLabelText}"/>
-                        <TextBlock Text="{Binding WinRate, StringFormat={}{0:F1}%}"
-                                   Style="{StaticResource KpiValueText}"/>
-                    </StackPanel>
-                </Border>
-
-                <!-- Today's trades -->
-                <Border Grid.Column="3"
-                        Background="{StaticResource CardBackgroundBrush}"
-                        BorderBrush="{StaticResource CardBorderBrush}"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        Padding="8"
-                        Margin="0,0,10,0">
-                    <StackPanel>
-                        <TextBlock Text="Trades (session)"
-                                   Style="{StaticResource KpiLabelText}"/>
-                        <TextBlock Text="{Binding TodaysTrades}"
-                                   Style="{StaticResource KpiValueText}"/>
-                    </StackPanel>
-                </Border>
-
-                <!-- Market heat -->
-                <Border Grid.Column="4"
-                        Background="{StaticResource CardBackgroundBrush}"
-                        BorderBrush="{StaticResource CardBorderBrush}"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        Padding="8">
-                    <StackPanel>
-                        <TextBlock Text="Market heat"
-                                   Style="{StaticResource KpiLabelText}"/>
-                        <TextBlock Text="{Binding MarketHeatScore, StringFormat={}{0:F1}}"
-                                   Style="{StaticResource KpiValueText}"/>
-                        <TextBlock Text="{Binding CurrentRegime}"
-                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                   FontSize="11"
-                                   Margin="0,4,0,0"/>
-                    </StackPanel>
-                </Border>
-            </Grid>
-
-            <!-- Content row -->
-            <Grid Grid.Row="1">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="3*" />
-                    <ColumnDefinition Width="2*" />
-                </Grid.ColumnDefinitions>
-
-                <!-- Left side: strategies + trades -->
-                <Grid Grid.Column="0" Margin="0,0,10,0">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="2*" />
-                        <RowDefinition Height="3*" />
-                    </Grid.RowDefinitions>
-
-                    <!-- Strategy performance -->
-                    <GroupBox Grid.Row="0">
-                        <GroupBox.Header>
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Strategy performance"
-                                           Foreground="{StaticResource TextPrimaryBrush}"
-                                           FontWeight="SemiBold"/>
-                                <TextBlock Text="{Binding ActiveStrategyName}"
-                                           Foreground="{StaticResource TextSecondaryBrush}"
-                                           Margin="8,0,0,0"/>
+                                <TextBlock Text="Last block" Style="{StaticResource LabelText}"/>
+                                <TextBlock Text="{Binding LastSkipReason}"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           TextWrapping="Wrap"/>
                             </StackPanel>
-                        </GroupBox.Header>
-                        <DataGrid ItemsSource="{Binding StrategySummaries}"
-                                  AutoGenerateColumns="False"
-                                  IsReadOnly="True"
-                                  HeadersVisibility="Column"
-                                  GridLinesVisibility="None"
-                                  RowHeaderWidth="0"
-                                  Margin="0,4,0,0">
-                            <DataGrid.Resources>
-                                <Style TargetType="DataGridRow">
-                                    <Setter Property="FontFamily" Value="Segoe UI"/>
-                                    <Setter Property="FontSize" Value="12"/>
-                                    <Setter Property="Background" Value="#111827"/>
-                                    <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
-                                    <Setter Property="BorderBrush" Value="#1F2937"/>
-                                    <Setter Property="BorderThickness" Value="0,0,0,1"/>
-                                </Style>
-                                <Style TargetType="DataGridColumnHeader">
-                                    <Setter Property="Background" Value="#111827"/>
-                                    <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
-                                    <Setter Property="FontFamily" Value="Segoe UI"/>
-                                    <Setter Property="FontSize" Value="12"/>
-                                </Style>
-                            </DataGrid.Resources>
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Strategy"
-                                                    Binding="{Binding Name}"
-                                                    Width="*"/>
-                                <DataGridTextColumn Header="Win rate (%)"
-                                                    Binding="{Binding WinRate, StringFormat={}{0:F1}}"
-                                                    Width="110"/>
-                                <DataGridTextColumn Header="Trades"
-                                                    Binding="{Binding TotalTrades}"
-                                                    Width="80"/>
-                                <DataGridTextColumn Header="Net P/L"
-                                                    Binding="{Binding NetPL, StringFormat={}{0:F2}}"
-                                                    Width="110"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </GroupBox>
+                        </Expander>
+                    </StackPanel>
+                </GroupBox>
 
-                    <!-- Recent trades -->
-                    <GroupBox Grid.Row="1">
-                        <GroupBox.Header>
-                            <TextBlock Text="Recent trades"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                       FontWeight="SemiBold"/>
-                        </GroupBox.Header>
-                        <DataGrid ItemsSource="{Binding TradeHistory}"
-                                  AutoGenerateColumns="False"
-                                  IsReadOnly="True"
-                                  HeadersVisibility="Column"
-                                  GridLinesVisibility="None"
-                                  RowHeaderWidth="0"
-                                  Margin="0,4,0,0">
-                            <DataGrid.Resources>
-                                <Style TargetType="DataGridRow">
-                                    <Setter Property="FontFamily" Value="Segoe UI"/>
-                                    <Setter Property="FontSize" Value="12"/>
-                                    <Setter Property="Background" Value="#111827"/>
-                                    <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
-                                    <Setter Property="BorderBrush" Value="#1F2937"/>
-                                    <Setter Property="BorderThickness" Value="0,0,0,1"/>
-                                </Style>
-                                <Style TargetType="DataGridColumnHeader">
-                                    <Setter Property="Background" Value="#111827"/>
-                                    <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
-                                    <Setter Property="FontFamily" Value="Segoe UI"/>
-                                    <Setter Property="FontSize" Value="12"/>
-                                </Style>
-                            </DataGrid.Resources>
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Time"
-                                                    Binding="{Binding Time, StringFormat={}{0:HH:mm:ss}}"
-                                                    Width="90"/>
-                                <DataGridTextColumn Header="Symbol"
-                                                    Binding="{Binding Symbol}"
-                                                    Width="90"/>
-                                <DataGridTextColumn Header="Strategy"
-                                                    Binding="{Binding StrategyName}"
-                                                    Width="*"/>
-                                <DataGridTextColumn Header="Dir"
-                                                    Binding="{Binding Direction}"
-                                                    Width="50"/>
-                                <DataGridTextColumn Header="Stake"
-                                                    Binding="{Binding Stake, StringFormat={}{0:F2}}"
-                                                    Width="90"/>
-                                <DataGridTextColumn Header="P/L"
-                                                    Binding="{Binding Profit, StringFormat={}{0:F2}}"
-                                                    Width="90"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </GroupBox>
-                </Grid>
+                <GroupBox>
+                    <GroupBox.Header>
+                        <TextBlock Text="Profile" FontWeight="SemiBold"/>
+                    </GroupBox.Header>
+                    <StackPanel>
+                        <TextBlock Text="Profile selection" Style="{StaticResource LabelText}"/>
+                        <ComboBox ItemsSource="{Binding Profiles}"
+                                  SelectedItem="{Binding SelectedProfile}"
+                                  Margin="0,4,0,10"/>
 
-                <!-- Right side: market + rules -->
-                <StackPanel Grid.Column="1">
-                    <!-- Market conditions -->
-                    <GroupBox>
-                        <GroupBox.Header>
-                            <TextBlock Text="Market conditions"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                       FontWeight="SemiBold"/>
-                        </GroupBox.Header>
-                        <StackPanel Margin="0,4,0,0">
-                            <TextBlock Text="Current symbol"
-                                       Style="{StaticResource KpiLabelText}"/>
-                            <TextBlock Text="{Binding ActiveSymbol}"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                       FontSize="14"
-                                       FontWeight="SemiBold"
-                                       Margin="0,0,0,4"/>
+                        <TextBlock Text="Risk summary" Style="{StaticResource LabelText}"/>
+                        <TextBlock Text="{Binding RulesSummary}"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,2,0,0"/>
+                    </StackPanel>
+                </GroupBox>
 
-                            <TextBlock Text="Regime"
-                                       Style="{StaticResource KpiLabelText}"
-                                       Margin="0,8,0,0"/>
-                            <TextBlock Text="{Binding CurrentRegime}"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                       FontSize="14"
-                                       Margin="0,0,0,4"/>
+                <GroupBox>
+                    <GroupBox.Header>
+                        <TextBlock Text="Controls" FontWeight="SemiBold"/>
+                    </GroupBox.Header>
+                    <StackPanel>
+                        <CheckBox Content="Auto-start when conditions are good"
+                                  IsChecked="{Binding AutoStartEnabled}"
+                                  Foreground="{DynamicResource TextPrimaryBrush}"
+                                  Margin="0,0,0,6"/>
+                        <CheckBox Content="Auto symbol rotation"
+                                  IsChecked="{Binding AutoSymbolRotationEnabled}"
+                                  Foreground="{DynamicResource TextPrimaryBrush}"
+                                  Margin="0,0,0,6"/>
+                        <Expander Header="Symbols & filters" IsExpanded="False" Margin="0,4,0,0">
+                            <StackPanel Margin="0,6,0,0">
+                                <TextBlock Text="Watchlist" Style="{StaticResource LabelText}"/>
+                                <TextBox Text="{Binding WatchlistText, UpdateSourceTrigger=PropertyChanged}"
+                                         Margin="0,4,0,6"
+                                         ToolTip="Comma-separated symbols e.g. R_50,R_75,R_100"/>
+                                <Button Content="Apply watchlist" Style="{StaticResource GhostButton}" Click="ApplyWatchlist_Click"/>
+                            </StackPanel>
+                        </Expander>
+                    </StackPanel>
+                </GroupBox>
+            </StackPanel>
 
-                            <TextBlock Text="Last skip reason"
-                                       Style="{StaticResource KpiLabelText}"
-                                       Margin="0,8,0,0"/>
-                            <TextBlock Text="{Binding LastSkipReason}"
-                                       TextWrapping="Wrap"
-                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                       FontSize="12"/>
-                            <TextBlock Text="Filters &amp; diagnostics"
-                                       Margin="0,8,0,0"
-                                       FontWeight="SemiBold"
-                                       Foreground="{StaticResource AccentBrush}"/>
-                            <TextBlock Text="{Binding MarketConditionsSummary}"
-                                       TextWrapping="Wrap"
-                                       Margin="0,2,0,0"
-                                       FontSize="12"
-                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+            <Grid Grid.Column="1" Grid.Row="0" Margin="12,0,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
 
-                        </StackPanel>
-                    </GroupBox>
-                    <!-- Per-symbol stats -->
-                    <GroupBox>
-                        <GroupBox.Header>
-                            <TextBlock Text="Per-symbol stats"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                       FontWeight="SemiBold"/>
-                        </GroupBox.Header>
-                        <DataGrid ItemsSource="{Binding SymbolStats}"
-                                  AutoGenerateColumns="False"
-                                  IsReadOnly="True"
-                                  HeadersVisibility="Column"
-                                  GridLinesVisibility="None"
-                                  Margin="0,4,0,0"
-                                  RowHeaderWidth="0">
-                            <DataGrid.Resources>
-                                <Style TargetType="DataGridRow">
-                                    <Setter Property="FontFamily" Value="Segoe UI"/>
-                                    <Setter Property="FontSize" Value="12"/>
-                                    <Setter Property="Background" Value="#111827"/>
-                                    <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
-                                    <Setter Property="BorderBrush" Value="#1F2937"/>
-                                    <Setter Property="BorderThickness" Value="0,0,0,1"/>
-                                </Style>
-                                <Style TargetType="DataGridColumnHeader">
-                                    <Setter Property="Background" Value="#111827"/>
-                                    <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
-                                    <Setter Property="FontFamily" Value="Segoe UI"/>
-                                    <Setter Property="FontSize" Value="12"/>
-                                </Style>
-                            </DataGrid.Resources>
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Symbol"
-                                                    Binding="{Binding Symbol}"
-                                                    Width="80"/>
-                                <DataGridTextColumn Header="Heat"
-                                                    Binding="{Binding Heat, StringFormat={}{0:F1}}"
-                                                    Width="60"/>
-                                <DataGridTextColumn Header="Regime"
-                                                    Binding="{Binding Regime}"
-                                                    Width="*"/>
-                                <DataGridTextColumn Header="Win%"
-                                                    Binding="{Binding WinRate, StringFormat={}{0:F1}}"
-                                                    Width="60"/>
-                                <DataGridTextColumn Header="Trades"
-                                                    Binding="{Binding TotalTrades}"
-                                                    Width="70"/>
-                                <DataGridTextColumn Header="P/L"
-                                                    Binding="{Binding NetPL, StringFormat={}{0:F2}}"
-                                                    Width="90"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </GroupBox>
+                <Border Grid.Column="0" Grid.Row="0" Style="{StaticResource KpiCard}" Margin="0,0,12,12">
+                    <StackPanel>
+                        <TextBlock Text="Balance" Style="{StaticResource LabelText}"/>
+                        <TextBlock Text="{Binding Balance, StringFormat={}{0:F2}}" Style="{StaticResource ValueText}"/>
+                    </StackPanel>
+                </Border>
 
-                    <!-- Rules & auto-pause -->
-                    <GroupBox Margin="0,10,0,0">
-                        <GroupBox.Header>
-                            <TextBlock Text="Rules &amp; auto-pause"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                       FontWeight="SemiBold"/>
-                        </GroupBox.Header>
-                        <StackPanel Margin="0,4,0,0">
-                            <TextBlock Text="Current rules"
-                                       Style="{StaticResource KpiLabelText}"/>
-                            <TextBlock Text="{Binding RulesSummary}"
-                                       TextWrapping="Wrap"
-                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                       FontSize="12"
-                                       Margin="0,0,0,4"/>
+                <Border Grid.Column="1" Grid.Row="0" Style="{StaticResource KpiCard}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="Session P/L" Style="{StaticResource LabelText}"/>
+                        <TextBlock Text="{Binding TodaysPL, StringFormat={}{0:F2}}" Style="{StaticResource ValueText}"/>
+                    </StackPanel>
+                </Border>
 
-                            <TextBlock Text="Auto-pause reason"
-                                       Style="{StaticResource KpiLabelText}"
-                                       Margin="0,8,0,0"/>
-                            <TextBlock Text="{Binding AutoPauseReasonText}"
-                                       TextWrapping="Wrap"
-                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                       FontSize="12"/>
-                        </StackPanel>
-                    </GroupBox>
-                </StackPanel>
+                <Border Grid.Column="0" Grid.Row="1" Style="{StaticResource KpiCard}" Margin="0,0,12,0">
+                    <StackPanel>
+                        <TextBlock Text="Win rate" Style="{StaticResource LabelText}"/>
+                        <TextBlock Text="{Binding WinRate, StringFormat={}{0:F1}%}" Style="{StaticResource ValueText}"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="1" Grid.Row="1" Style="{StaticResource KpiCard}">
+                    <StackPanel>
+                        <TextBlock Text="Trades" Style="{StaticResource LabelText}"/>
+                        <TextBlock Text="{Binding TodaysTrades}" Style="{StaticResource ValueText}"/>
+                    </StackPanel>
+                </Border>
             </Grid>
+
+            <TabControl Grid.Column="1" Grid.Row="1" Margin="12,0,0,0" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource PanelBorderBrush}">
+                <TabItem Header="Performance">
+                    <Grid Margin="10">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="2*" />
+                            <RowDefinition Height="3*" />
+                        </Grid.RowDefinitions>
+
+                        <GroupBox Grid.Row="0" Margin="0,0,0,10">
+                            <GroupBox.Header>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Strategy performance" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{Binding ActiveStrategyName}"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               Margin="8,0,0,0"/>
+                                </StackPanel>
+                            </GroupBox.Header>
+                            <DataGrid ItemsSource="{Binding StrategySummaries}"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="True"
+                                      HeadersVisibility="Column"
+                                      GridLinesVisibility="None"
+                                      RowHeaderWidth="0"
+                                      Margin="0,4,0,0">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Strategy" Binding="{Binding Name}" Width="*"/>
+                                    <DataGridTextColumn Header="Win rate (%)" Binding="{Binding WinRate, StringFormat={}{0:F1}}" Width="120"/>
+                                    <DataGridTextColumn Header="Trades" Binding="{Binding TotalTrades}" Width="80"/>
+                                    <DataGridTextColumn Header="Net P/L" Binding="{Binding NetPL, StringFormat={}{0:F2}}" Width="100"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </GroupBox>
+
+                        <GroupBox Grid.Row="1">
+                            <GroupBox.Header>
+                                <TextBlock Text="Recent trades" FontWeight="SemiBold"/>
+                            </GroupBox.Header>
+                            <DataGrid ItemsSource="{Binding TradeHistory}"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="True"
+                                      HeadersVisibility="Column"
+                                      GridLinesVisibility="None"
+                                      RowHeaderWidth="0"
+                                      Margin="0,4,0,0">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Time" Binding="{Binding Time, StringFormat={}{0:HH:mm:ss}}" Width="90"/>
+                                    <DataGridTextColumn Header="Symbol" Binding="{Binding Symbol}" Width="90"/>
+                                    <DataGridTextColumn Header="Strategy" Binding="{Binding StrategyName}" Width="*"/>
+                                    <DataGridTextColumn Header="Dir" Binding="{Binding Direction}" Width="50"/>
+                                    <DataGridTextColumn Header="Stake" Binding="{Binding Stake, StringFormat={}{0:F2}}" Width="80"/>
+                                    <DataGridTextColumn Header="P/L" Binding="{Binding Profit, StringFormat={}{0:F2}}" Width="80"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </GroupBox>
+                    </Grid>
+                </TabItem>
+
+                <TabItem Header="Market">
+                    <Grid Margin="10">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <GroupBox Grid.Row="0" Margin="0,0,0,10">
+                            <GroupBox.Header>
+                                <TextBlock Text="Per-symbol stats" FontWeight="SemiBold"/>
+                            </GroupBox.Header>
+                            <DataGrid ItemsSource="{Binding SymbolStats}"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="True"
+                                      HeadersVisibility="Column"
+                                      GridLinesVisibility="None"
+                                      Margin="0,4,0,0"
+                                      RowHeaderWidth="0">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Symbol" Binding="{Binding Symbol}" Width="80"/>
+                                    <DataGridTextColumn Header="Heat" Binding="{Binding Heat, StringFormat={}{0:F1}}" Width="60"/>
+                                    <DataGridTextColumn Header="Regime" Binding="{Binding Regime}" Width="*"/>
+                                    <DataGridTextColumn Header="Win%" Binding="{Binding WinRate, StringFormat={}{0:F1}}" Width="60"/>
+                                    <DataGridTextColumn Header="Trades" Binding="{Binding TotalTrades}" Width="70"/>
+                                    <DataGridTextColumn Header="P/L" Binding="{Binding NetPL, StringFormat={}{0:F2}}" Width="90"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </GroupBox>
+
+                    </Grid>
+                </TabItem>
+            </TabControl>
+
+            <Expander Grid.Column="1" Grid.Row="2" Header="Session log" IsExpanded="False" Margin="12,12,0,0">
+                <Border Background="{DynamicResource LogBackgroundBrush}" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="6">
+                    <TextBox x:Name="LogTextBox"
+                             Text="{Binding CombinedLog, Mode=OneWay}"
+                             IsReadOnly="True"
+                             FontFamily="Consolas"
+                             FontSize="12"
+                             VerticalScrollBarVisibility="Auto"
+                             HorizontalScrollBarVisibility="Auto"
+                             TextWrapping="NoWrap"
+                             Background="{DynamicResource LogBackgroundBrush}"
+                             Foreground="{DynamicResource TextPrimaryBrush}"
+                             BorderThickness="0"
+                             AcceptsReturn="True"
+                             TextChanged="LogTextBox_TextChanged"/>
+                </Border>
+            </Expander>
         </Grid>
     </DockPanel>
 </Window>
+

@@ -312,8 +312,9 @@ namespace DerivSmartBotDesktop
         public void StartBot()
         {
             _controller.Start();
-            IsRunning = true;
-            AddLog("Bot started.");
+            IsRunning = _controller.IsRunning;
+            if (IsRunning)
+                AddLog("Bot started.");
             UpdateStatusText();
         }
 
@@ -322,6 +323,13 @@ namespace DerivSmartBotDesktop
             _controller.Stop();
             IsRunning = false;
             AddLog("Bot stopped.");
+            UpdateStatusText();
+        }
+
+        public void ClearAutoPause()
+        {
+            _controller.ClearAutoPause();
+            IsRunning = _controller.IsRunning;
             UpdateStatusText();
         }
 
@@ -475,7 +483,7 @@ namespace DerivSmartBotDesktop
             var rules = cfg.Rules;
 
             RulesSummary =
-                $"DD: {r.MaxDailyDrawdownFraction:P0} | Profit: {r.MaxDailyProfitFraction:P0} | Max/h: {rules.MaxTradesPerHour} | Cooldown: {rules.TradeCooldown.TotalSeconds:F0}s";
+                $"DD: {r.MaxDailyDrawdownFraction:P0} | Profit: {r.MaxDailyProfitFraction:P0} | Max/h: {rules.MaxTradesPerHour} | Cooldown: {rules.TradeCooldown.TotalSeconds:F0}s | Losses: {r.MaxConsecutiveLosses} | WinRate: {r.MinWinRatePercentToContinue:F0}%/{r.MinTradesBeforeWinRateCheck} trades";
         }
 
         public void AddLog(string message)

@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Media;
 using DerivSmartBotDesktop.Core;
 using DerivSmartBotDesktop.Deriv;
 using DerivSmartBotDesktop.Settings;
@@ -22,8 +24,18 @@ namespace DerivSmartBotDesktop
 
         public MainWindow()
         {
-            InitializeComponent();
-            Loaded += MainWindow_Loaded;
+            try
+            {
+                InitializeComponent();
+                Loaded += MainWindow_Loaded;
+                ApplyTheme(isLight: false);
+            }
+            catch (Exception ex)
+            {
+                var logPath = Path.Combine(Path.GetTempPath(), "DerivSmartBotDesktop_startup_error.txt");
+                File.WriteAllText(logPath, ex.ToString());
+                throw;
+            }
         }
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -267,6 +279,21 @@ namespace DerivSmartBotDesktop
             _viewModel?.StopBot();
         }
 
+        private void ClearAutoPause_Click(object sender, RoutedEventArgs e)
+        {
+            _viewModel?.ClearAutoPause();
+        }
+
+        private void LightTheme_Checked(object sender, RoutedEventArgs e)
+        {
+            ApplyTheme(isLight: true);
+        }
+
+        private void LightTheme_Unchecked(object sender, RoutedEventArgs e)
+        {
+            ApplyTheme(isLight: false);
+        }
+
         private async void Settings_Click(object sender, RoutedEventArgs e)
         {
             if (ShowSettingsDialog())
@@ -395,6 +422,55 @@ namespace DerivSmartBotDesktop
         private void LogTextBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
         {
             LogTextBox.ScrollToEnd();
+        }
+
+        private void ApplyTheme(bool isLight)
+        {
+            var newResources = new ResourceDictionary();
+
+            foreach (DictionaryEntry entry in Resources)
+                newResources[entry.Key] = entry.Value;
+
+            foreach (var dict in Resources.MergedDictionaries)
+                newResources.MergedDictionaries.Add(dict);
+
+            newResources["ShellBackgroundBrush"] = new LinearGradientBrush
+            {
+                StartPoint = new Point(0, 0),
+                EndPoint = new Point(1, 1),
+                GradientStops = new GradientStopCollection
+                {
+                    new GradientStop((Color)ColorConverter.ConvertFromString(isLight ? "#F5F7FA" : "#121720"), 0),
+                    new GradientStop((Color)ColorConverter.ConvertFromString(isLight ? "#EFF2F6" : "#19212C"), 0.6),
+                    new GradientStop((Color)ColorConverter.ConvertFromString(isLight ? "#F8FAFC" : "#141A24"), 1)
+                }
+            };
+
+            SetBrushColor(newResources, "PanelBrush", isLight ? "#FFFFFF" : "#1B2430");
+            SetBrushColor(newResources, "PanelBorderBrush", isLight ? "#D7DEE6" : "#2A3646");
+            SetBrushColor(newResources, "HeaderBrush", isLight ? "#FFFFFF" : "#1A222D");
+            SetBrushColor(newResources, "BadgeBrush", isLight ? "#EEF2F6" : "#202B38");
+            SetBrushColor(newResources, "BadgeBorderBrush", isLight ? "#D7DEE6" : "#2C3A4B");
+            SetBrushColor(newResources, "InputBackgroundBrush", isLight ? "#F5F7FA" : "#161E2A");
+            SetBrushColor(newResources, "TableRowBrush", isLight ? "#F8FAFC" : "#17212C");
+            SetBrushColor(newResources, "TableHeaderBrush", isLight ? "#EEF2F6" : "#15202B");
+            SetBrushColor(newResources, "LogBackgroundBrush", isLight ? "#F5F7FA" : "#151E2A");
+            SetBrushColor(newResources, "ButtonBrush", isLight ? "#E9EEF3" : "#223142");
+            SetBrushColor(newResources, "ButtonBorderBrush", isLight ? "#D7DEE6" : "#2A3646");
+
+            SetBrushColor(newResources, "AccentBrush", isLight ? "#2F7D7A" : "#63B8A4");
+            SetBrushColor(newResources, "AccentSoftBrush", isLight ? "#DDEBEA" : "#223235");
+            SetBrushColor(newResources, "PositiveBrush", isLight ? "#2F9E68" : "#7AD4A6");
+            SetBrushColor(newResources, "NegativeBrush", isLight ? "#C05656" : "#E38B8B");
+            SetBrushColor(newResources, "TextPrimaryBrush", isLight ? "#1F2A37" : "#E7EDF5");
+            SetBrushColor(newResources, "TextSecondaryBrush", isLight ? "#55606D" : "#B7C3D1");
+
+            Resources = newResources;
+        }
+
+        private void SetBrushColor(ResourceDictionary dictionary, string key, string color)
+        {
+            dictionary[key] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
         }
     }
 }

@@ -1804,9 +1804,9 @@ public class VolatilityFilteredStrategy : ITradingStrategy
                             MaxStake = 5.0,
                             MaxDailyDrawdownFraction = 0.1,
                             MaxDailyProfitFraction = 0.15,
-                            MaxConsecutiveLosses = 3,
-                            MinWinRatePercentToContinue = 55,
-                            MinTradesBeforeWinRateCheck = 30
+                            MaxConsecutiveLosses = 5,
+                            MinWinRatePercentToContinue = 50,
+                            MinTradesBeforeWinRateCheck = 40
                         },
                         Rules = new BotRules
                         {
@@ -1824,7 +1824,7 @@ public class VolatilityFilteredStrategy : ITradingStrategy
                             MaxStake = 100.0,
                             MaxDailyDrawdownFraction = 0.4,
                             MaxDailyProfitFraction = 0.6,
-                            MaxConsecutiveLosses = 10,
+                            MaxConsecutiveLosses = 12,
                             MinWinRatePercentToContinue = 0
                         },
                         Rules = new BotRules
@@ -1844,9 +1844,9 @@ public class VolatilityFilteredStrategy : ITradingStrategy
                             MaxStake = 25.0,
                             MaxDailyDrawdownFraction = 0.25,
                             MaxDailyProfitFraction = 0.4,
-                            MaxConsecutiveLosses = 6,
-                            MinWinRatePercentToContinue = 50,
-                            MinTradesBeforeWinRateCheck = 25
+                            MaxConsecutiveLosses = 8,
+                            MinWinRatePercentToContinue = 45,
+                            MinTradesBeforeWinRateCheck = 40
                         },
                         Rules = new BotRules
                         {
@@ -2437,6 +2437,19 @@ public class VolatilityFilteredStrategy : ITradingStrategy
 
             SetSkipReason(null, "Bot actively trading.");
             RaiseBotEvent("Bot started.");
+        }
+
+        public void ClearAutoPause()
+        {
+            lock (_stateLock)
+            {
+                _autoPaused = false;
+                _autoPauseReason = AutoPauseReason.None;
+                _consecutiveLosses = 0;
+            }
+
+            SetSkipReason("AUTO_PAUSE_CLEARED", "Auto-pause cleared by user.");
+            RaiseBotEvent("Auto-pause cleared by user.");
         }
 
 
