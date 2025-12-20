@@ -3178,6 +3178,7 @@ private void OnTickReceived(Tick tick)
         private async void ExecuteTrade(Tick tick, StrategyDecision decision, DateTime now, FeatureVector? entryFeatures)
         {
             double baseStake;
+            double currentBalanceSnapshot;
             StrategyStats? strategyStats = null;
             List<TradeRecord> recentTradesSnapshot;
             MarketDiagnostics diagnosticsSnapshot;
@@ -3207,6 +3208,8 @@ private void OnTickReceived(Tick tick)
                     };
                 }
 
+                currentBalanceSnapshot = _balance;
+
                 recentTradesSnapshot = _tradeHistory
                     .OrderByDescending(t => t.Time)
                     .Take(25)
@@ -3232,6 +3235,7 @@ private void OnTickReceived(Tick tick)
             double edgeProbability = decision.EdgeProbability ?? 0.5;
             double stake = DynamicRiskHelper.ComputeDynamicStake(
                 baseStake,
+                currentBalanceSnapshot,
                 modelConfidence,
                 edgeProbability,
                 diagnosticsSnapshot.Regime,

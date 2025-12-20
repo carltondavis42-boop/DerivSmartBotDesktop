@@ -13,6 +13,7 @@ namespace DerivSmartBotDesktop.Core
     {
         public static double ComputeDynamicStake(
             double baseStake,
+            double currentBalance,
             double modelConfidence,
             double edgeProbability,
             MarketRegime regime,
