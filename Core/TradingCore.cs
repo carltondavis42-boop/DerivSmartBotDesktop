@@ -339,6 +339,8 @@ namespace DerivSmartBotDesktop.Core
         public string StrategyName { get; set; }
         public TradeSignal Signal { get; set; }
         public double Confidence { get; set; }  // 0.0 - 1.0
+        public int Duration { get; set; } = 1;
+        public string DurationUnit { get; set; } = "t";
 
         /// <summary>
         /// ML-estimated probability that this decision will result in a profitable trade.
@@ -357,6 +359,12 @@ namespace DerivSmartBotDesktop.Core
     {
         string Name { get; }
         TradeSignal OnNewTick(Tick tick, StrategyContext context);
+    }
+
+    public interface ITradeDurationProvider
+    {
+        int DefaultDuration { get; }
+        string DefaultDurationUnit { get; }
     }
 
     public interface IRegimeAwareStrategy
@@ -427,9 +435,11 @@ namespace DerivSmartBotDesktop.Core
         }
     }
 
-    public class ScalpingStrategy : ITradingStrategy, IRegimeAwareStrategy
+    public class ScalpingStrategy : ITradingStrategy, IRegimeAwareStrategy, ITradeDurationProvider
     {
         public string Name => "Scalping EMA 9/19 Retest";
+        public int DefaultDuration => 3;
+        public string DefaultDurationUnit => "t";
 
         private sealed class Ema
         {
@@ -771,9 +781,11 @@ namespace DerivSmartBotDesktop.Core
     }
 
 
-    public class MomentumStrategy : ITradingStrategy, IRegimeAwareStrategy
+    public class MomentumStrategy : ITradingStrategy, IRegimeAwareStrategy, ITradeDurationProvider
     {
         public string Name => "Momentum Trend";
+        public int DefaultDuration => 5;
+        public string DefaultDurationUnit => "t";
 
         private readonly int _trendLookback;
         private readonly double _distanceFraction;
@@ -819,9 +831,11 @@ namespace DerivSmartBotDesktop.Core
         }
     }
 
-    public class RangeTradingStrategy : ITradingStrategy, IRegimeAwareStrategy
+    public class RangeTradingStrategy : ITradingStrategy, IRegimeAwareStrategy, ITradeDurationProvider
     {
         public string Name => "Range / Mean Reversion";
+        public int DefaultDuration => 2;
+        public string DefaultDurationUnit => "m";
 
         private readonly int _lookback;
         private readonly double _bandWidth;
@@ -868,9 +882,11 @@ namespace DerivSmartBotDesktop.Core
         }
     }
 
-    public class BreakoutStrategy : ITradingStrategy, IRegimeAwareStrategy
+    public class BreakoutStrategy : ITradingStrategy, IRegimeAwareStrategy, ITradeDurationProvider
     {
         public string Name => "Breakout";
+        public int DefaultDuration => 3;
+        public string DefaultDurationUnit => "m";
 
         private readonly int _lookback;
         private readonly double _bufferFraction;
@@ -918,9 +934,11 @@ namespace DerivSmartBotDesktop.Core
         }
     }
 
-    public class SmartMoneyConceptStrategy : IAITradingStrategy, IRegimeAwareStrategy
+    public class SmartMoneyConceptStrategy : IAITradingStrategy, IRegimeAwareStrategy, ITradeDurationProvider
     {
         public string Name => "SMC Liquidity Sweep";
+        public int DefaultDuration => 5;
+        public string DefaultDurationUnit => "m";
 
         private readonly int _higherTfLookback;
         private readonly int _liquidityLookback;
@@ -964,7 +982,9 @@ namespace DerivSmartBotDesktop.Core
             {
                 StrategyName = Name,
                 Signal = TradeSignal.None,
-                Confidence = 0.0
+                Confidence = 0.0,
+                Duration = DefaultDuration,
+                DurationUnit = DefaultDurationUnit
             };
 
             if (context == null || context.TickWindow.Count < _higherTfLookback)
@@ -1144,9 +1164,11 @@ namespace DerivSmartBotDesktop.Core
 
 
 
-    public class AdvancedPriceActionStrategy : IAITradingStrategy, IRegimeAwareStrategy
+    public class AdvancedPriceActionStrategy : IAITradingStrategy, IRegimeAwareStrategy, ITradeDurationProvider
     {
         public string Name => "Advanced Price Action";
+        public int DefaultDuration => 3;
+        public string DefaultDurationUnit => "m";
 
         private readonly int _swingLookback;
         private readonly int _minTicks;
@@ -1177,7 +1199,9 @@ namespace DerivSmartBotDesktop.Core
             {
                 StrategyName = Name,
                 Signal = TradeSignal.None,
-                Confidence = 0.0
+                Confidence = 0.0,
+                Duration = DefaultDuration,
+                DurationUnit = DefaultDurationUnit
             };
 
             if (context == null || context.TickWindow.Count < _minTicks)
@@ -1405,7 +1429,7 @@ public bool ShouldTradeIn(MarketDiagnostics diagnostics)
                    diagnostics.Regime == MarketRegime.RangingLowVol;
         }
     }
-public class VolatilityFilteredStrategy : ITradingStrategy
+public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvider
     {
         private readonly ITradingStrategy _inner;
         private readonly string _name;
@@ -1415,6 +1439,8 @@ public class VolatilityFilteredStrategy : ITradingStrategy
         private readonly double? _trendThreshold;
 
         public string Name => _name;
+        public int DefaultDuration => (_inner as ITradeDurationProvider)?.DefaultDuration ?? 1;
+        public string DefaultDurationUnit => (_inner as ITradeDurationProvider)?.DefaultDurationUnit ?? "t";
 
         public VolatilityFilteredStrategy(
             ITradingStrategy inner,
@@ -1965,18 +1991,25 @@ public class VolatilityFilteredStrategy : ITradingStrategy
             TradeSignal finalSignal;
             double finalScore;
             int finalVotes;
+            StrategyDecision? durationSource;
 
             if (buyScore > sellScore)
             {
                 finalSignal = TradeSignal.Buy;
                 finalScore = buyScore;
                 finalVotes = buyVotes;
+                durationSource = list.Where(d => d.Signal == TradeSignal.Buy)
+                                     .OrderByDescending(d => d.Confidence)
+                                     .FirstOrDefault();
             }
             else
             {
                 finalSignal = TradeSignal.Sell;
                 finalScore = sellScore;
                 finalVotes = sellVotes;
+                durationSource = list.Where(d => d.Signal == TradeSignal.Sell)
+                                     .OrderByDescending(d => d.Confidence)
+                                     .FirstOrDefault();
             }
 
             if (finalVotes < 2 && finalScore < 1.0)
@@ -1996,7 +2029,9 @@ public class VolatilityFilteredStrategy : ITradingStrategy
             {
                 StrategyName = "Ensemble",
                 Signal = finalSignal,
-                Confidence = combinedConfidence
+                Confidence = combinedConfidence,
+                Duration = durationSource?.Duration ?? 1,
+                DurationUnit = durationSource?.DurationUnit ?? "t"
             };
         }
 
@@ -2071,7 +2106,7 @@ public class VolatilityFilteredStrategy : ITradingStrategy
         // Toggle for environment relaxation when testing on DEMO / ML.
         // This can be flipped at runtime from the UI/profile.
         // Set to false again for live / conservative use.
-        private bool _relaxEnvironmentForTesting = true;
+        private bool _relaxEnvironmentForTesting = false;
         public bool DisableGlobalRiskGatesForTesting { get; set; } = false;
 
         private DateTime _sessionStartTime = DateTime.MinValue;
@@ -2103,6 +2138,32 @@ public class VolatilityFilteredStrategy : ITradingStrategy
         private readonly Dictionary<string, StrategyStats> _strategyStats = new();
         private readonly List<TradeRecord> _tradeHistory = new();
         private readonly Dictionary<Guid, TradeRecord> _openTrades = new();
+
+        private static (int Duration, string Unit) GetDefaultDuration(ITradingStrategy strategy)
+        {
+            if (strategy is ITradeDurationProvider provider &&
+                provider.DefaultDuration > 0 &&
+                !string.IsNullOrWhiteSpace(provider.DefaultDurationUnit))
+            {
+                return (provider.DefaultDuration, provider.DefaultDurationUnit);
+            }
+
+            return (1, "t");
+        }
+
+        private static void EnsureDecisionDuration(StrategyDecision decision, ITradingStrategy strategy)
+        {
+            if (decision == null || strategy == null)
+                return;
+
+            var (duration, unit) = GetDefaultDuration(strategy);
+
+            if (decision.Duration <= 0)
+                decision.Duration = duration;
+
+            if (string.IsNullOrWhiteSpace(decision.DurationUnit))
+                decision.DurationUnit = unit;
+        }
 
         private readonly Dictionary<string, DateTime> _strategyBlockedUntil = new();
         private bool _shortTermPLBlockActive;
@@ -2856,6 +2917,8 @@ private void OnTickReceived(Tick tick)
                     };
                 }
 
+                EnsureDecisionDuration(dec, strategy);
+
                 if (dec.Signal != TradeSignal.None && dec.Confidence > 0)
                     decisions.Add(dec);
             }
@@ -3301,7 +3364,7 @@ private void OnTickReceived(Tick tick)
 
             RaiseBotEvent(
                 $"[Ensemble] Placing {dirText} trade via {decision.StrategyName} on {tick.Symbol} " +
-                $"(stake={stake:F2}, conf={decision.Confidence:F2}, heat={MarketHeatScore:F1})");
+                $"(stake={stake:F2}, conf={decision.Confidence:F2}, heat={MarketHeatScore:F1}, dur={decision.Duration}{decision.DurationUnit})");
 
             await _deriv.BuyRiseFallAsync(
                 tick.Symbol,
@@ -3309,7 +3372,8 @@ private void OnTickReceived(Tick tick)
                 decision.Signal,
                 decision.StrategyName,
                 tradeId,
-                durationTicks: 1,
+                duration: decision.Duration,
+                durationUnit: decision.DurationUnit,
                 currency: "USD");
         }
 

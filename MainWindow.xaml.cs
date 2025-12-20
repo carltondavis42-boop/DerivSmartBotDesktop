@@ -239,6 +239,8 @@ namespace DerivSmartBotDesktop
             // 7) ViewModel & DataContext
             _viewModel = new BotViewModel(_controller);
             DataContext = _viewModel;
+            _viewModel.SetAccountMode(_settings.IsDemo);
+            _viewModel.AddLog($"Account mode: {(_settings.IsDemo ? "DEMO" : "LIVE")}");
 
             // Log which ML components are being used
             if (!string.IsNullOrEmpty(regimeModelInfo))
@@ -426,12 +428,13 @@ namespace DerivSmartBotDesktop
 
         private void ApplyTheme(bool isLight)
         {
+            var baseResources = Application.Current?.Resources ?? Resources;
             var newResources = new ResourceDictionary();
 
-            foreach (DictionaryEntry entry in Resources)
+            foreach (DictionaryEntry entry in baseResources)
                 newResources[entry.Key] = entry.Value;
 
-            foreach (var dict in Resources.MergedDictionaries)
+            foreach (var dict in baseResources.MergedDictionaries)
                 newResources.MergedDictionaries.Add(dict);
 
             newResources["ShellBackgroundBrush"] = new LinearGradientBrush
@@ -465,7 +468,10 @@ namespace DerivSmartBotDesktop
             SetBrushColor(newResources, "TextPrimaryBrush", isLight ? "#1F2430" : "#F1F5F9");
             SetBrushColor(newResources, "TextSecondaryBrush", isLight ? "#6B7280" : "#A9B4C4");
 
-            Resources = newResources;
+            if (Application.Current != null)
+                Application.Current.Resources = newResources;
+            else
+                Resources = newResources;
         }
 
         private void SetBrushColor(ResourceDictionary dictionary, string key, string color)

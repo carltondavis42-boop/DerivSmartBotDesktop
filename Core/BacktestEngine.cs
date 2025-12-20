@@ -1,4 +1,5 @@
 ﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -16,9 +17,8 @@ namespace DerivSmartBotDesktop.Core
     }
 
     /// <summary>
-    /// Very simple offline backtester that replays ticks through the strategies.
-    /// This is kept independent of DerivWebSocketClient so you can feed in
-    /// tick data from CSV, JSON, etc.
+    /// Paper/forward testing engine that replays ticks and resolves trades using
+    /// strategy-driven durations instead of a fixed look-ahead.
     /// </summary>
     public sealed class BacktestEngine
     {
@@ -26,15 +26,18 @@ namespace DerivSmartBotDesktop.Core
         private readonly RiskManager _riskManager;
         private readonly StrategyContext _context = new();
         private readonly IMarketRegimeClassifier _regimeClassifier;
+        private readonly IContractPricingModel _pricingModel;
 
         public BacktestEngine(
             IEnumerable<ITradingStrategy> strategies,
             RiskManager riskManager,
-            IMarketRegimeClassifier? regimeClassifier = null)
+            IMarketRegimeClassifier? regimeClassifier = null,
+            IContractPricingModel? pricingModel = null)
         {
             _strategies = strategies.ToList();
             _riskManager = riskManager;
             _regimeClassifier = regimeClassifier ?? new AiMarketRegimeClassifier();
+            _pricingModel = pricingModel ?? new FixedPayoutPricingModel();
         }
 
         public BacktestResult Run(IReadOnlyList<Tick> ticks, double startingBalance)
@@ -67,15 +70,37 @@ namespace DerivSmartBotDesktop.Core
                 var decisions = new List<StrategyDecision>();
                 foreach (var s in _strategies)
                 {
-                    var sig = s.OnNewTick(tick, _context);
-                    if (sig == TradeSignal.None) continue;
+                    if (s == null) continue;
 
-                    decisions.Add(new StrategyDecision
+                    StrategyDecision strategyDecision;
+                    if (s is IAITradingStrategy ai)
                     {
-                        StrategyName = s.Name,
-                        Signal = sig,
-                        Confidence = 0.5
-                    });
+                        strategyDecision = ai.Decide(tick, _context, diag);
+                        if (strategyDecision.Duration <= 0 || string.IsNullOrWhiteSpace(strategyDecision.DurationUnit))
+                        {
+                            var (duration, unit) = ResolveDefaultDuration(s);
+                            strategyDecision.Duration = duration;
+                            strategyDecision.DurationUnit = unit;
+                        }
+                    }
+                    else
+                    {
+                        var sig = s.OnNewTick(tick, _context);
+                        if (sig == TradeSignal.None) continue;
+
+                        var (duration, unit) = ResolveDefaultDuration(s);
+                        strategyDecision = new StrategyDecision
+                        {
+                            StrategyName = s.Name,
+                            Signal = sig,
+                            Confidence = 0.5,
+                            Duration = duration,
+                            DurationUnit = unit
+                        };
+                    }
+
+                    if (strategyDecision.Signal != TradeSignal.None)
+                        decisions.Add(strategyDecision);
                 }
 
                 var decision = AIHelpers.EnsembleVote(decisions);
@@ -86,7 +111,7 @@ namespace DerivSmartBotDesktop.Core
                 if (stake <= 0)
                     continue;
 
-                double profit = SimulateOutcome(ticks, i, decision.Signal, stake);
+                double profit = ResolveOutcome(ticks, i, decision, stake);
                 balance += profit;
 
                 totalTrades++;
@@ -113,27 +138,103 @@ namespace DerivSmartBotDesktop.Core
             };
         }
 
-        // Very rough placeholder outcome model – replace with Deriv contract math later.
-        private static double SimulateOutcome(
+        // Resolve a paper trade outcome using duration + payout model.
+        private double ResolveOutcome(
             IReadOnlyList<Tick> ticks,
             int entryIndex,
-            TradeSignal signal,
+            StrategyDecision decision,
             double stake)
         {
-            int lookAhead = Math.Min(5, ticks.Count - entryIndex - 1);
-            if (lookAhead <= 0)
+            if (decision == null || decision.Signal == TradeSignal.None)
+                return 0.0;
+
+            int exitIndex = ResolveExitIndex(ticks, entryIndex, decision.Duration, decision.DurationUnit);
+            if (exitIndex <= entryIndex)
                 return 0.0;
 
             var entry = ticks[entryIndex];
-            var exit = ticks[entryIndex + lookAhead];
+            var exit = ticks[exitIndex];
 
             double diff = exit.Quote - entry.Quote;
-            if (signal == TradeSignal.Sell)
+            if (decision.Signal == TradeSignal.Sell)
                 diff = -diff;
 
-            // Treat diff as % movement, capped at ±100% of stake.
-            double pct = Math.Clamp(diff * 100.0, -1.0, 1.0);
-            return stake * pct;
+            bool win = diff > 0.0;
+            if (!win && diff == 0.0)
+                return 0.0;
+
+            double payoutMultiplier = _pricingModel.GetPayoutMultiplier(
+                entry.Symbol,
+                decision.Duration,
+                decision.DurationUnit);
+
+            return win ? stake * payoutMultiplier : -stake;
+        }
+
+        private static (int Duration, string Unit) ResolveDefaultDuration(ITradingStrategy strategy)
+        {
+            if (strategy is ITradeDurationProvider provider &&
+                provider.DefaultDuration > 0 &&
+                !string.IsNullOrWhiteSpace(provider.DefaultDurationUnit))
+            {
+                return (provider.DefaultDuration, provider.DefaultDurationUnit);
+            }
+
+            return (1, "t");
+        }
+
+        private static int ResolveExitIndex(
+            IReadOnlyList<Tick> ticks,
+            int entryIndex,
+            int duration,
+            string durationUnit)
+        {
+            if (duration <= 0) duration = 1;
+            if (string.IsNullOrWhiteSpace(durationUnit)) durationUnit = "t";
+
+            if (durationUnit.Equals("t", StringComparison.OrdinalIgnoreCase))
+            {
+                return Math.Min(entryIndex + duration, ticks.Count - 1);
+            }
+
+            var entryTime = ticks[entryIndex].Time;
+            TimeSpan delta = durationUnit.ToLowerInvariant() switch
+            {
+                "s" => TimeSpan.FromSeconds(duration),
+                "m" => TimeSpan.FromMinutes(duration),
+                "h" => TimeSpan.FromHours(duration),
+                "d" => TimeSpan.FromDays(duration),
+                _ => TimeSpan.FromSeconds(duration)
+            };
+
+            var target = entryTime + delta;
+            for (int i = entryIndex + 1; i < ticks.Count; i++)
+            {
+                if (ticks[i].Time >= target)
+                    return i;
+            }
+
+            return entryIndex;
+        }
+    }
+
+    public interface IContractPricingModel
+    {
+        double GetPayoutMultiplier(string symbol, int duration, string durationUnit);
+    }
+
+    public sealed class FixedPayoutPricingModel : IContractPricingModel
+    {
+        private readonly double _payoutMultiplier;
+
+        public FixedPayoutPricingModel(double payoutMultiplier = 0.85)
+        {
+            _payoutMultiplier = Math.Max(0.1, Math.Min(2.0, payoutMultiplier));
+        }
+
+        public double GetPayoutMultiplier(string symbol, int duration, string durationUnit)
+        {
+            return _payoutMultiplier;
         }
     }
 }

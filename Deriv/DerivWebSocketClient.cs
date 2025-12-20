@@ -109,11 +109,14 @@ namespace DerivSmartBotDesktop.Deriv
             TradeSignal direction,
             string strategyName,
             Guid clientTradeId,
-            int durationTicks = 1,
+            int duration = 1,
+            string durationUnit = "t",
             string currency = "USD")
         {
             // Map TradeSignal to "CALL"/"PUT"
             string contractType = direction == TradeSignal.Buy ? "CALL" : "PUT";
+            if (duration <= 0) duration = 1;
+            if (string.IsNullOrWhiteSpace(durationUnit)) durationUnit = "t";
 
             // Final price/amount to Deriv: decimal with 2 dp
             var price = Math.Round((decimal)stake, 2, MidpointRounding.AwayFromZero);
@@ -128,8 +131,8 @@ namespace DerivSmartBotDesktop.Deriv
                     basis = "stake",
                     contract_type = contractType,
                     currency = currency,
-                    duration = durationTicks,
-                    duration_unit = "t",
+                    duration = duration,
+                    duration_unit = durationUnit,
                     symbol = symbol
                 },
                 passthrough = new

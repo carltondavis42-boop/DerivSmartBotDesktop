@@ -1,4 +1,5 @@
 ﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -15,9 +16,11 @@ namespace DerivSmartBotDesktop.Core
     /// This strategy is self-contained and resets cleanly on symbol changes, so it is safe
     /// with auto symbol rotation.
     /// </summary>
-    class SupplyDemandPullbackStrategy : IAITradingStrategy, IRegimeAwareStrategy
+    class SupplyDemandPullbackStrategy : IAITradingStrategy, IRegimeAwareStrategy, ITradeDurationProvider
     {
         public string Name => $"SupplyDemand Pullback M{_timeframeMinutes}";
+        public int DefaultDuration => Math.Max(3, _timeframeMinutes / 2);
+        public string DefaultDurationUnit => "m";
 
         private readonly int _timeframeMinutes;
         private readonly int _atrPeriod;
@@ -258,7 +261,9 @@ namespace DerivSmartBotDesktop.Core
             {
                 StrategyName = Name,
                 Signal = TradeSignal.None,
-                Confidence = 0.0
+                Confidence = 0.0,
+                Duration = DefaultDuration,
+                DurationUnit = DefaultDurationUnit
             };
         }
 
@@ -272,7 +277,9 @@ namespace DerivSmartBotDesktop.Core
             {
                 StrategyName = Name,
                 Signal = signal,
-                Confidence = confidence
+                Confidence = confidence,
+                Duration = DefaultDuration,
+                DurationUnit = DefaultDurationUnit
             };
         }
 

@@ -1,11 +1,22 @@
 using System;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 
 namespace DerivSmartBotDesktop.Settings
 {
     public static class SettingsService
     {
+        private sealed class SettingsStore
+        {
+            public string AppId { get; set; }
+            public string Symbol { get; set; }
+            public bool IsDemo { get; set; } = true;
+            public string ApiTokenProtected { get; set; }
+            public string ApiToken { get; set; } // legacy
+        }
+
         private static string GetSettingsPath()
         {
             var folder = Path.Combine(
@@ -27,8 +38,27 @@ namespace DerivSmartBotDesktop.Settings
                     return new AppSettings();
 
                 var json = File.ReadAllText(path);
-                var settings = JsonSerializer.Deserialize<AppSettings>(json);
-                return settings ?? new AppSettings();
+                var store = JsonSerializer.Deserialize<SettingsStore>(json);
+                if (store == null)
+                    return new AppSettings();
+
+                var settings = new AppSettings
+                {
+                    AppId = store.AppId,
+                    Symbol = store.Symbol,
+                    IsDemo = store.IsDemo
+                };
+
+                if (!string.IsNullOrWhiteSpace(store.ApiTokenProtected))
+                {
+                    settings.ApiToken = UnprotectToken(store.ApiTokenProtected);
+                }
+                else if (!string.IsNullOrWhiteSpace(store.ApiToken))
+                {
+                    settings.ApiToken = store.ApiToken;
+                }
+
+                return settings;
             }
             catch
             {
@@ -41,7 +71,15 @@ namespace DerivSmartBotDesktop.Settings
             try
             {
                 var path = GetSettingsPath();
-                var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions
+                var store = new SettingsStore
+                {
+                    AppId = settings.AppId,
+                    Symbol = settings.Symbol,
+                    IsDemo = settings.IsDemo,
+                    ApiTokenProtected = ProtectToken(settings.ApiToken)
+                };
+
+                var json = JsonSerializer.Serialize(store, new JsonSerializerOptions
                 {
                     WriteIndented = true
                 });
@@ -50,6 +88,33 @@ namespace DerivSmartBotDesktop.Settings
             catch
             {
                 // ignore
+            }
+        }
+
+        private static string ProtectToken(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+                return string.Empty;
+
+            var bytes = Encoding.UTF8.GetBytes(token);
+            var protectedBytes = ProtectedData.Protect(bytes, null, DataProtectionScope.CurrentUser);
+            return Convert.ToBase64String(protectedBytes);
+        }
+
+        private static string UnprotectToken(string protectedToken)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(protectedToken))
+                    return string.Empty;
+
+                var bytes = Convert.FromBase64String(protectedToken);
+                var unprotectedBytes = ProtectedData.Unprotect(bytes, null, DataProtectionScope.CurrentUser);
+                return Encoding.UTF8.GetString(unprotectedBytes);
+            }
+            catch
+            {
+                return string.Empty;
             }
         }
     }

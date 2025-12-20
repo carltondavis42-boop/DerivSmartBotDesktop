@@ -53,6 +53,8 @@ namespace DerivSmartBotDesktop
         private string _activeSymbol;
         private string _watchlistText = string.Empty;
         private string _lastSkipReason;
+        private string _accountModeText = "DEMO";
+        private bool _isLiveMode;
 
         public double Balance
         {
@@ -309,6 +311,12 @@ namespace DerivSmartBotDesktop
             OnPropertyChanged(nameof(WatchlistText));
         }
 
+        public void SetAccountMode(bool isDemo)
+        {
+            IsLiveMode = !isDemo;
+            AccountModeText = isDemo ? "DEMO" : "LIVE";
+        }
+
         public void StartBot()
         {
             _controller.Start();
@@ -357,37 +365,37 @@ namespace DerivSmartBotDesktop
             TodaysTrades = totalTrades;
             WinRate = totalTrades > 0 ? (double)totalWins / totalTrades * 100.0 : 0.0;
 
-            StrategySummaries.Clear();
-            foreach (var kvp in _controller.StrategyStats.OrderByDescending(x => x.Value.NetPL))
-            {
-                StrategySummaries.Add(new StrategySummary
+            var strategyRows = _controller.StrategyStats
+                .OrderByDescending(x => x.Value.NetPL)
+                .Select(kvp => new StrategySummary
                 {
                     Name = kvp.Key,
                     WinRate = kvp.Value.WinRate,
                     TotalTrades = kvp.Value.TotalTrades,
                     NetPL = kvp.Value.NetPL
-                });
-            }
+                })
+                .ToList();
+            SyncCollection(StrategySummaries, strategyRows);
 
-            SymbolStats.Clear();
-            foreach (var kvp in _controller.SymbolStats.OrderByDescending(x => x.Value.NetPL))
-            {
-                var s = kvp.Value;
-                SymbolStats.Add(new SymbolStatsViewModel
+            var symbolRows = _controller.SymbolStats
+                .OrderByDescending(x => x.Value.NetPL)
+                .Select(kvp => new SymbolStatsViewModel
                 {
                     Symbol = kvp.Key,
-                    Heat = s.LastHeat,
-                    Regime = s.LastRegime.ToString(),
-                    RegimeScore = s.LastRegimeScore,
-                    WinRate = s.WinRate,
-                    TotalTrades = s.TotalTrades,
-                    NetPL = s.NetPL
-                });
-            }
+                    Heat = kvp.Value.LastHeat,
+                    Regime = kvp.Value.LastRegime.ToString(),
+                    RegimeScore = kvp.Value.LastRegimeScore,
+                    WinRate = kvp.Value.WinRate,
+                    TotalTrades = kvp.Value.TotalTrades,
+                    NetPL = kvp.Value.NetPL
+                })
+                .ToList();
+            SyncCollection(SymbolStats, symbolRows);
 
-            TradeHistory.Clear();
-            foreach (var tr in _controller.TradeHistory.OrderByDescending(x => x.Time))
-                TradeHistory.Add(tr);
+            var tradeRows = _controller.TradeHistory
+                .OrderByDescending(x => x.Time)
+                .ToList();
+            SyncCollection(TradeHistory, tradeRows);
 
             // Keep UI in sync if AutoStartEnabled changed elsewhere
             OnPropertyChanged(nameof(AutoStartEnabled));
@@ -484,6 +492,41 @@ namespace DerivSmartBotDesktop
 
             RulesSummary =
                 $"DD: {r.MaxDailyDrawdownFraction:P0} | Profit: {r.MaxDailyProfitFraction:P0} | Max/h: {rules.MaxTradesPerHour} | Cooldown: {rules.TradeCooldown.TotalSeconds:F0}s | Losses: {r.MaxConsecutiveLosses} | WinRate: {r.MinWinRatePercentToContinue:F0}%/{r.MinTradesBeforeWinRateCheck} trades";
+        }
+
+        private static void SyncCollection<T>(ObservableCollection<T> target, IList<T> items)
+        {
+            if (target == null) return;
+
+            int i = 0;
+            for (; i < items.Count; i++)
+            {
+                if (i < target.Count)
+                {
+                    target[i] = items[i];
+                }
+                else
+                {
+                    target.Add(items[i]);
+                }
+            }
+
+            while (target.Count > items.Count)
+            {
+                target.RemoveAt(target.Count - 1);
+            }
+        }
+
+        public string AccountModeText
+        {
+            get => _accountModeText;
+            private set { _accountModeText = value; OnPropertyChanged(); }
+        }
+
+        public bool IsLiveMode
+        {
+            get => _isLiveMode;
+            private set { _isLiveMode = value; OnPropertyChanged(); }
         }
 
         public void AddLog(string message)
