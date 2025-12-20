@@ -13,28 +13,28 @@
         <conv:BoolToTextBotConverter x:Key="BoolToText_Bot" />
 
         <LinearGradientBrush x:Key="ShellBackgroundBrush" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#121720" Offset="0" />
-            <GradientStop Color="#19212C" Offset="0.6" />
-            <GradientStop Color="#141A24" Offset="1" />
+            <GradientStop Color="#0E131A" Offset="0" />
+            <GradientStop Color="#121925" Offset="0.6" />
+            <GradientStop Color="#0B1118" Offset="1" />
         </LinearGradientBrush>
-        <SolidColorBrush x:Key="PanelBrush" Color="#1B2430"/>
-        <SolidColorBrush x:Key="PanelBorderBrush" Color="#2A3646"/>
-        <SolidColorBrush x:Key="HeaderBrush" Color="#1A222D"/>
-        <SolidColorBrush x:Key="BadgeBrush" Color="#202B38"/>
-        <SolidColorBrush x:Key="BadgeBorderBrush" Color="#2C3A4B"/>
-        <SolidColorBrush x:Key="InputBackgroundBrush" Color="#161E2A"/>
-        <SolidColorBrush x:Key="TableRowBrush" Color="#17212C"/>
-        <SolidColorBrush x:Key="TableHeaderBrush" Color="#15202B"/>
-        <SolidColorBrush x:Key="LogBackgroundBrush" Color="#151E2A"/>
-        <SolidColorBrush x:Key="ButtonBrush" Color="#223142"/>
-        <SolidColorBrush x:Key="ButtonBorderBrush" Color="#2A3646"/>
+        <SolidColorBrush x:Key="PanelBrush" Color="#121A24"/>
+        <SolidColorBrush x:Key="PanelBorderBrush" Color="#243244"/>
+        <SolidColorBrush x:Key="HeaderBrush" Color="#0F1722"/>
+        <SolidColorBrush x:Key="BadgeBrush" Color="#182231"/>
+        <SolidColorBrush x:Key="BadgeBorderBrush" Color="#2B3A4F"/>
+        <SolidColorBrush x:Key="InputBackgroundBrush" Color="#0E1620"/>
+        <SolidColorBrush x:Key="TableRowBrush" Color="#121B26"/>
+        <SolidColorBrush x:Key="TableHeaderBrush" Color="#0F1822"/>
+        <SolidColorBrush x:Key="LogBackgroundBrush" Color="#0E1620"/>
+        <SolidColorBrush x:Key="ButtonBrush" Color="#1A2533"/>
+        <SolidColorBrush x:Key="ButtonBorderBrush" Color="#2B3A4F"/>
 
-        <SolidColorBrush x:Key="AccentBrush" Color="#63B8A4"/>
-        <SolidColorBrush x:Key="AccentSoftBrush" Color="#223235"/>
-        <SolidColorBrush x:Key="PositiveBrush" Color="#7AD4A6"/>
-        <SolidColorBrush x:Key="NegativeBrush" Color="#E38B8B"/>
-        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#E7EDF5"/>
-        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#B7C3D1"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#3BAFDA"/>
+        <SolidColorBrush x:Key="AccentSoftBrush" Color="#1C2A35"/>
+        <SolidColorBrush x:Key="PositiveBrush" Color="#3CCB90"/>
+        <SolidColorBrush x:Key="NegativeBrush" Color="#E35D6A"/>
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F1F5F9"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#A9B4C4"/>
 
         <Style TargetType="TextBlock">
             <Setter Property="FontFamily" Value="Bahnschrift"/>
@@ -107,7 +107,7 @@
 
         <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
-            <Setter Property="Foreground" Value="#0B0F14"/>
+            <Setter Property="Foreground" Value="#F8FAFC"/>
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
         </Style>
 
