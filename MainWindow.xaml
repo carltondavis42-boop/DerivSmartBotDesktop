@@ -330,7 +330,7 @@
                                   IsChecked="{Binding AutoSymbolRotationEnabled}"
                                   Foreground="{DynamicResource TextPrimaryBrush}"
                                   Margin="0,0,0,6"/>
-                        <Expander Header="Symbols & filters" IsExpanded="False" Margin="0,4,0,0">
+                        <Expander Header="Symbols &amp; filters" IsExpanded="False" Margin="0,4,0,0">
                             <StackPanel Margin="0,6,0,0">
                                 <TextBlock Text="Watchlist" Style="{StaticResource LabelText}"/>
                                 <TextBox Text="{Binding WatchlistText, UpdateSourceTrigger=PropertyChanged}"
