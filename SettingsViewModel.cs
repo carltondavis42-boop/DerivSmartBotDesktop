@@ -10,6 +10,7 @@ namespace DerivSmartBotDesktop
         private string _apiToken;
         private string _symbol;
         private bool _isDemo;
+        private bool _forwardTestEnabled;
 
         public string AppId
         {
@@ -35,12 +36,19 @@ namespace DerivSmartBotDesktop
             set { _isDemo = value; OnPropertyChanged(); }
         }
 
+        public bool ForwardTestEnabled
+        {
+            get => _forwardTestEnabled;
+            set { _forwardTestEnabled = value; OnPropertyChanged(); }
+        }
+
         public SettingsViewModel(AppSettings settings)
         {
             AppId = settings.AppId;
             ApiToken = settings.ApiToken;
             Symbol = settings.Symbol;
             IsDemo = settings.IsDemo;
+            ForwardTestEnabled = settings.ForwardTestEnabled;
         }
 
         public AppSettings ToSettings() => new AppSettings
@@ -48,7 +56,8 @@ namespace DerivSmartBotDesktop
             AppId = this.AppId?.Trim(),
             ApiToken = this.ApiToken?.Trim(),
             Symbol = this.Symbol?.Trim(),
-            IsDemo = this.IsDemo
+            IsDemo = this.IsDemo,
+            ForwardTestEnabled = this.ForwardTestEnabled
         };
 
         public event PropertyChangedEventHandler PropertyChanged;

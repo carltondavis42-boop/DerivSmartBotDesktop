@@ -55,6 +55,7 @@ namespace DerivSmartBotDesktop
         private string _lastSkipReason;
         private string _accountModeText = "DEMO";
         private bool _isLiveMode;
+        private bool _isForwardTestEnabled;
 
         public double Balance
         {
@@ -317,6 +318,11 @@ namespace DerivSmartBotDesktop
             AccountModeText = isDemo ? "DEMO" : "LIVE";
         }
 
+        public void SetForwardTestEnabled(bool enabled)
+        {
+            IsForwardTestEnabled = enabled;
+        }
+
         public void StartBot()
         {
             _controller.Start();
@@ -527,6 +533,12 @@ namespace DerivSmartBotDesktop
         {
             get => _isLiveMode;
             private set { _isLiveMode = value; OnPropertyChanged(); }
+        }
+
+        public bool IsForwardTestEnabled
+        {
+            get => _isForwardTestEnabled;
+            private set { _isForwardTestEnabled = value; OnPropertyChanged(); }
         }
 
         public void AddLog(string message)

@@ -2123,6 +2123,8 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
             set => _relaxEnvironmentForTesting = value;
         }
 
+        public bool ForwardTestEnabled { get; set; } = false;
+
         private readonly RiskManager _riskManager;
         private readonly List<ITradingStrategy> _strategies;
         private BotRules _rules;
@@ -2138,6 +2140,20 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
         private readonly Dictionary<string, StrategyStats> _strategyStats = new();
         private readonly List<TradeRecord> _tradeHistory = new();
         private readonly Dictionary<Guid, TradeRecord> _openTrades = new();
+        private readonly Dictionary<Guid, ForwardTestTrade> _forwardTrades = new();
+
+        private sealed class ForwardTestTrade
+        {
+            public Guid TradeId { get; set; }
+            public string Symbol { get; set; } = string.Empty;
+            public TradeSignal Direction { get; set; }
+            public double EntryPrice { get; set; }
+            public DateTime EntryTime { get; set; }
+            public int RemainingTicks { get; set; }
+            public DateTime? ExitTime { get; set; }
+            public double Stake { get; set; }
+            public double PayoutMultiplier { get; set; }
+        }
 
         private static (int Duration, string Unit) GetDefaultDuration(ITradingStrategy strategy)
         {
@@ -2754,6 +2770,7 @@ private void OnTickReceived(Tick tick)
             }
 
             _context.AddTick(tick);
+            UpdateForwardTrades(tick);
 
             var baseDiag = _context.AnalyzeRegime() ?? new MarketDiagnostics();
 
@@ -3366,6 +3383,22 @@ private void OnTickReceived(Tick tick)
                 $"[Ensemble] Placing {dirText} trade via {decision.StrategyName} on {tick.Symbol} " +
                 $"(stake={stake:F2}, conf={decision.Confidence:F2}, heat={MarketHeatScore:F1}, dur={decision.Duration}{decision.DurationUnit})");
 
+            if (ForwardTestEnabled)
+            {
+                bool started = await TryStartForwardTestTradeAsync(tick, decision, stake, tradeId);
+                if (!started)
+                {
+                    lock (_stateLock)
+                    {
+                        _openTrades.Remove(tradeId);
+                    }
+
+                    SetSkipReason("FORWARD_TEST_FAIL", "Forward test proposal failed; trade skipped.");
+                }
+
+                return;
+            }
+
             await _deriv.BuyRiseFallAsync(
                 tick.Symbol,
                 stake,
@@ -3377,6 +3410,175 @@ private void OnTickReceived(Tick tick)
                 currency: "USD");
         }
 
+
+        private async Task<bool> TryStartForwardTestTradeAsync(
+            Tick tick,
+            StrategyDecision decision,
+            double stake,
+            Guid tradeId)
+        {
+            var proposalProvider = _deriv as IProposalProvider;
+            if (proposalProvider == null)
+            {
+                RaiseBotEvent("Forward test unavailable: proposal provider missing.");
+                return false;
+            }
+
+            string contractType = decision.Signal == TradeSignal.Buy ? "CALL" : "PUT";
+            var request = new ProposalRequest
+            {
+                Symbol = tick.Symbol,
+                ContractType = contractType,
+                Stake = stake,
+                Duration = decision.Duration,
+                DurationUnit = decision.DurationUnit,
+                Currency = string.IsNullOrWhiteSpace(_deriv.Currency) ? "USD" : _deriv.Currency
+            };
+
+            ProposalQuote quote;
+            try
+            {
+                quote = await proposalProvider.GetProposalAsync(request);
+            }
+            catch (Exception ex)
+            {
+                RaiseBotEvent($"Forward test proposal failed: {ex.Message}");
+                return false;
+            }
+
+            double payoutMultiplier = ExtractProposalMultiplier(quote, stake);
+            if (payoutMultiplier <= 0.0)
+            {
+                RaiseBotEvent("Forward test proposal missing payout; trade skipped.");
+                return false;
+            }
+
+            var forwardTrade = new ForwardTestTrade
+            {
+                TradeId = tradeId,
+                Symbol = tick.Symbol ?? string.Empty,
+                Direction = decision.Signal,
+                EntryPrice = tick.Quote,
+                EntryTime = tick.Time,
+                Stake = stake,
+                PayoutMultiplier = payoutMultiplier
+            };
+
+            var span = ResolveDurationSpan(decision.Duration, decision.DurationUnit);
+            if (span.HasValue)
+            {
+                forwardTrade.ExitTime = tick.Time + span.Value;
+            }
+            else
+            {
+                forwardTrade.RemainingTicks = Math.Max(1, decision.Duration);
+            }
+
+            lock (_stateLock)
+            {
+                _forwardTrades[tradeId] = forwardTrade;
+            }
+
+            RaiseBotEvent($"[ForwardTest] Scheduled {contractType} {tick.Symbol} {decision.Duration}{decision.DurationUnit} payout x{payoutMultiplier:F2}.");
+            return true;
+        }
+
+        private void UpdateForwardTrades(Tick tick)
+        {
+            if (!ForwardTestEnabled || tick == null)
+                return;
+
+            List<(Guid TradeId, double Profit)> closed = null;
+
+            lock (_stateLock)
+            {
+                foreach (var kvp in _forwardTrades.ToList())
+                {
+                    var trade = kvp.Value;
+                    if (!string.Equals(trade.Symbol, tick.Symbol, StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    bool shouldExit;
+                    if (trade.ExitTime.HasValue)
+                    {
+                        shouldExit = tick.Time >= trade.ExitTime.Value;
+                    }
+                    else
+                    {
+                        trade.RemainingTicks = Math.Max(0, trade.RemainingTicks - 1);
+                        shouldExit = trade.RemainingTicks <= 0;
+                    }
+
+                    if (!shouldExit)
+                        continue;
+
+                    double diff = tick.Quote - trade.EntryPrice;
+                    if (trade.Direction == TradeSignal.Sell)
+                        diff = -diff;
+
+                    double profit = diff > 0
+                        ? trade.Stake * trade.PayoutMultiplier
+                        : -trade.Stake;
+
+                    if (diff == 0.0)
+                        profit = 0.0;
+
+                    closed ??= new List<(Guid, double)>();
+                    closed.Add((trade.TradeId, profit));
+                }
+
+                if (closed != null)
+                {
+                    foreach (var item in closed)
+                    {
+                        _forwardTrades.Remove(item.TradeId);
+                    }
+                }
+            }
+
+            if (closed != null)
+            {
+                foreach (var item in closed)
+                {
+                    OnContractFinished("ForwardTest", item.TradeId, item.Profit);
+                }
+            }
+        }
+
+        private static TimeSpan? ResolveDurationSpan(int duration, string unit)
+        {
+            if (duration <= 0) duration = 1;
+            if (string.IsNullOrWhiteSpace(unit)) unit = "t";
+
+            if (unit.Equals("t", StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            return unit.ToLowerInvariant() switch
+            {
+                "s" => TimeSpan.FromSeconds(duration),
+                "m" => TimeSpan.FromMinutes(duration),
+                "h" => TimeSpan.FromHours(duration),
+                "d" => TimeSpan.FromDays(duration),
+                _ => TimeSpan.FromSeconds(duration)
+            };
+        }
+
+        private static double ExtractProposalMultiplier(ProposalQuote quote, double stake)
+        {
+            if (quote == null || stake <= 0)
+                return 0.0;
+
+            if (quote.Profit.HasValue && quote.Profit.Value > 0)
+                return quote.Profit.Value / stake;
+
+            if (quote.Payout.HasValue)
+                return (quote.Payout.Value - stake) / stake;
+
+            if (quote.AskPrice.HasValue && quote.AskPrice.Value > 0 && quote.Payout.HasValue)
+                return (quote.Payout.Value - quote.AskPrice.Value) / stake;
+
+            return 0.0;
+        }
 
         private void OnContractFinished(string strategyName, Guid tradeId, double profit)
         {

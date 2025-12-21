@@ -10,6 +10,7 @@
         // True  = demo account
         // False = real account
         public bool IsDemo { get; set; } = true;
+        public bool ForwardTestEnabled { get; set; } = false;
 
         public bool IsValid =>
             !string.IsNullOrWhiteSpace(AppId) &&

@@ -13,6 +13,7 @@ namespace DerivSmartBotDesktop.Settings
             public string AppId { get; set; }
             public string Symbol { get; set; }
             public bool IsDemo { get; set; } = true;
+            public bool ForwardTestEnabled { get; set; } = false;
             public string ApiTokenProtected { get; set; }
             public string ApiToken { get; set; } // legacy
         }
@@ -46,7 +47,8 @@ namespace DerivSmartBotDesktop.Settings
                 {
                     AppId = store.AppId,
                     Symbol = store.Symbol,
-                    IsDemo = store.IsDemo
+                    IsDemo = store.IsDemo,
+                    ForwardTestEnabled = store.ForwardTestEnabled
                 };
 
                 if (!string.IsNullOrWhiteSpace(store.ApiTokenProtected))
@@ -76,6 +78,7 @@ namespace DerivSmartBotDesktop.Settings
                     AppId = settings.AppId,
                     Symbol = settings.Symbol,
                     IsDemo = settings.IsDemo,
+                    ForwardTestEnabled = settings.ForwardTestEnabled,
                     ApiTokenProtected = ProtectToken(settings.ApiToken)
                 };
 

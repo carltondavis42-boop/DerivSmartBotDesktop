@@ -20,6 +20,7 @@ namespace DerivSmartBotDesktop.Settings
             ApiTokenBox.Password = _initialSettings.ApiToken ?? string.Empty;
             SymbolTextBox.Text = _initialSettings.Symbol ?? "R_100";
             ModeComboBox.SelectedIndex = _initialSettings.IsDemo ? 0 : 1;
+            ForwardTestCheckBox.IsChecked = _initialSettings.ForwardTestEnabled;
         }
 
         private void Ok_Click(object sender, RoutedEventArgs e)
@@ -31,7 +32,8 @@ namespace DerivSmartBotDesktop.Settings
                 Symbol = string.IsNullOrWhiteSpace(SymbolTextBox.Text)
                     ? "R_100"
                     : SymbolTextBox.Text.Trim(),
-                IsDemo = ModeComboBox.SelectedIndex != 1
+                IsDemo = ModeComboBox.SelectedIndex != 1,
+                ForwardTestEnabled = ForwardTestCheckBox.IsChecked == true
             };
 
             if (!s.IsValid)
@@ -55,7 +57,8 @@ namespace DerivSmartBotDesktop.Settings
                 Symbol = string.IsNullOrWhiteSpace(SymbolTextBox.Text)
                     ? "R_100"
                     : SymbolTextBox.Text.Trim(),
-                IsDemo = ModeComboBox.SelectedIndex != 1
+                IsDemo = ModeComboBox.SelectedIndex != 1,
+                ForwardTestEnabled = ForwardTestCheckBox.IsChecked == true
             };
 
             if (!s.IsValid)
