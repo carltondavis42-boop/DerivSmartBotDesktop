@@ -214,6 +214,7 @@ namespace DerivSmartBotDesktop
                 tradeLogger,
                 strategySelector);
             _controller.ForwardTestEnabled = _settings.ForwardTestEnabled;
+            _controller.RelaxEnvironmentForTesting = _settings.IsDemo;
 
             // 7) Symbols to watch (primary + default list)
             var watchList = new List<string>();
