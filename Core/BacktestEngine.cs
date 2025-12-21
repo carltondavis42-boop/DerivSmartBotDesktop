@@ -27,17 +27,23 @@ namespace DerivSmartBotDesktop.Core
         private readonly StrategyContext _context = new();
         private readonly IMarketRegimeClassifier _regimeClassifier;
         private readonly IContractPricingModel _pricingModel;
+        private readonly string _currency;
 
         public BacktestEngine(
             IEnumerable<ITradingStrategy> strategies,
             RiskManager riskManager,
             IMarketRegimeClassifier? regimeClassifier = null,
-            IContractPricingModel? pricingModel = null)
+            IContractPricingModel? pricingModel = null,
+            IProposalProvider? proposalProvider = null,
+            string currency = "USD")
         {
             _strategies = strategies.ToList();
             _riskManager = riskManager;
             _regimeClassifier = regimeClassifier ?? new AiMarketRegimeClassifier();
-            _pricingModel = pricingModel ?? new FixedPayoutPricingModel();
+            _currency = string.IsNullOrWhiteSpace(currency) ? "USD" : currency;
+            _pricingModel = pricingModel ?? (proposalProvider == null
+                ? new FixedPayoutPricingModel()
+                : new ProposalPricingModel(proposalProvider, _currency));
         }
 
         public BacktestResult Run(IReadOnlyList<Tick> ticks, double startingBalance)
@@ -163,8 +169,11 @@ namespace DerivSmartBotDesktop.Core
             if (!win && diff == 0.0)
                 return 0.0;
 
+            string contractType = decision.Signal == TradeSignal.Buy ? "CALL" : "PUT";
             double payoutMultiplier = _pricingModel.GetPayoutMultiplier(
                 entry.Symbol,
+                contractType,
+                stake,
                 decision.Duration,
                 decision.DurationUnit);
 
@@ -220,7 +229,12 @@ namespace DerivSmartBotDesktop.Core
 
     public interface IContractPricingModel
     {
-        double GetPayoutMultiplier(string symbol, int duration, string durationUnit);
+        double GetPayoutMultiplier(
+            string symbol,
+            string contractType,
+            double stake,
+            int duration,
+            string durationUnit);
     }
 
     public sealed class FixedPayoutPricingModel : IContractPricingModel
@@ -232,9 +246,101 @@ namespace DerivSmartBotDesktop.Core
             _payoutMultiplier = Math.Max(0.1, Math.Min(2.0, payoutMultiplier));
         }
 
-        public double GetPayoutMultiplier(string symbol, int duration, string durationUnit)
+        public double GetPayoutMultiplier(
+            string symbol,
+            string contractType,
+            double stake,
+            int duration,
+            string durationUnit)
         {
             return _payoutMultiplier;
+        }
+    }
+
+    public sealed class ProposalPricingModel : IContractPricingModel
+    {
+        private readonly IProposalProvider _proposalProvider;
+        private readonly string _currency;
+        private readonly IContractPricingModel _fallback;
+        private readonly Dictionary<string, double> _cache = new();
+        private readonly object _cacheLock = new();
+
+        public ProposalPricingModel(
+            IProposalProvider proposalProvider,
+            string currency = "USD",
+            IContractPricingModel? fallback = null)
+        {
+            _proposalProvider = proposalProvider ?? throw new ArgumentNullException(nameof(proposalProvider));
+            _currency = string.IsNullOrWhiteSpace(currency) ? "USD" : currency;
+            _fallback = fallback ?? new FixedPayoutPricingModel();
+        }
+
+        public double GetPayoutMultiplier(
+            string symbol,
+            string contractType,
+            double stake,
+            int duration,
+            string durationUnit)
+        {
+            if (stake <= 0)
+                return _fallback.GetPayoutMultiplier(symbol, contractType, stake, duration, durationUnit);
+
+            string key = $"{symbol}|{contractType}|{stake:F2}|{duration}|{durationUnit}|{_currency}";
+
+            lock (_cacheLock)
+            {
+                if (_cache.TryGetValue(key, out var cached))
+                    return cached;
+            }
+
+            try
+            {
+                var request = new ProposalRequest
+                {
+                    Symbol = symbol,
+                    ContractType = contractType,
+                    Stake = stake,
+                    Duration = duration,
+                    DurationUnit = durationUnit,
+                    Currency = _currency
+                };
+
+                var quote = _proposalProvider.GetProposalAsync(request).GetAwaiter().GetResult();
+                double multiplier = ExtractMultiplier(quote, stake);
+
+                if (multiplier > 0)
+                {
+                    lock (_cacheLock)
+                    {
+                        _cache[key] = multiplier;
+                    }
+                }
+
+                return multiplier > 0
+                    ? multiplier
+                    : _fallback.GetPayoutMultiplier(symbol, contractType, stake, duration, durationUnit);
+            }
+            catch
+            {
+                return _fallback.GetPayoutMultiplier(symbol, contractType, stake, duration, durationUnit);
+            }
+        }
+
+        private static double ExtractMultiplier(ProposalQuote quote, double stake)
+        {
+            if (quote == null || stake <= 0)
+                return 0.0;
+
+            if (quote.Profit.HasValue && quote.Profit.Value > 0)
+                return quote.Profit.Value / stake;
+
+            if (quote.Payout.HasValue)
+                return (quote.Payout.Value - stake) / stake;
+
+            if (quote.AskPrice.HasValue && quote.AskPrice.Value > 0 && quote.Payout.HasValue)
+                return (quote.Payout.Value - quote.AskPrice.Value) / stake;
+
+            return 0.0;
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
@@ -8,7 +9,7 @@ using DerivSmartBotDesktop.Core;
 
 namespace DerivSmartBotDesktop.Deriv
 {
-    public class DerivWebSocketClient : IDisposable
+    public class DerivWebSocketClient : IDisposable, IProposalProvider
     {
         private readonly string _appId;
         private ClientWebSocket _ws;
@@ -20,6 +21,9 @@ namespace DerivSmartBotDesktop.Deriv
 
         private bool _authorized;
         private TaskCompletionSource<bool> _authorizeTcs;
+        private int _nextReqId = 1;
+        private readonly Dictionary<int, TaskCompletionSource<ProposalQuote>> _proposalRequests = new();
+        private readonly object _proposalLock = new();
 
         public bool IsConnected => _ws?.State == WebSocketState.Open;
         public bool IsAuthorized => _authorized;
@@ -101,6 +105,57 @@ namespace DerivSmartBotDesktop.Deriv
             };
             await SendAsync(payload);
             Log($"SEND: {JsonSerializer.Serialize(payload)}");
+        }
+
+        public async Task<ProposalQuote> GetProposalAsync(
+            ProposalRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            if (request == null)
+                throw new ArgumentNullException(nameof(request));
+
+            if (string.IsNullOrWhiteSpace(request.Symbol))
+                throw new ArgumentException("Symbol is required.", nameof(request));
+
+            if (string.IsNullOrWhiteSpace(request.ContractType))
+                throw new ArgumentException("Contract type is required.", nameof(request));
+
+            int reqId = Interlocked.Increment(ref _nextReqId);
+            var tcs = new TaskCompletionSource<ProposalQuote>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            lock (_proposalLock)
+            {
+                _proposalRequests[reqId] = tcs;
+            }
+
+            using var _ = cancellationToken.Register(() =>
+            {
+                lock (_proposalLock)
+                {
+                    if (_proposalRequests.Remove(reqId, out var pending))
+                    {
+                        pending.TrySetCanceled(cancellationToken);
+                    }
+                }
+            });
+
+            var payload = new
+            {
+                proposal = 1,
+                amount = request.Stake,
+                basis = "stake",
+                contract_type = request.ContractType,
+                currency = request.Currency,
+                duration = request.Duration,
+                duration_unit = request.DurationUnit,
+                symbol = request.Symbol,
+                req_id = reqId
+            };
+
+            await SendAsync(payload);
+            Log($"SEND: {JsonSerializer.Serialize(payload)}");
+
+            return await tcs.Task.ConfigureAwait(false);
         }
 
         public async Task BuyRiseFallAsync(
@@ -291,6 +346,10 @@ namespace DerivSmartBotDesktop.Deriv
                     HandleContract(root);
                     break;
 
+                case "proposal":
+                    HandleProposal(root);
+                    break;
+
                 case "error":
                     HandleError(root);
                     break;
@@ -370,6 +429,55 @@ namespace DerivSmartBotDesktop.Deriv
             {
                 Log($"Error subscribing to contract {contractId}: {ex.Message}");
             }
+        }
+
+        private void HandleProposal(JsonElement root)
+        {
+            if (!root.TryGetProperty("req_id", out var reqIdProp) || !reqIdProp.TryGetInt32(out var reqId))
+                return;
+
+            TaskCompletionSource<ProposalQuote> tcs = null;
+            lock (_proposalLock)
+            {
+                if (_proposalRequests.TryGetValue(reqId, out var pending))
+                {
+                    tcs = pending;
+                    _proposalRequests.Remove(reqId);
+                }
+            }
+
+            if (tcs == null)
+                return;
+
+            if (root.TryGetProperty("error", out var err))
+            {
+                string code = err.TryGetProperty("code", out var c) ? c.GetString() : "Unknown";
+                string msg = err.TryGetProperty("message", out var m) ? m.GetString() : "Unknown error";
+                tcs.TrySetException(new Exception($"Proposal error [{code}]: {msg}"));
+                return;
+            }
+
+            if (!root.TryGetProperty("proposal", out var proposal))
+            {
+                tcs.TrySetException(new Exception("Proposal response missing payload."));
+                return;
+            }
+
+            var quote = new ProposalQuote();
+
+            if (proposal.TryGetProperty("id", out var idProp) && idProp.ValueKind == JsonValueKind.String)
+                quote.Id = idProp.GetString();
+
+            if (proposal.TryGetProperty("payout", out var payoutProp) && payoutProp.TryGetDouble(out var payout))
+                quote.Payout = payout;
+
+            if (proposal.TryGetProperty("profit", out var profitProp) && profitProp.TryGetDouble(out var profit))
+                quote.Profit = profit;
+
+            if (proposal.TryGetProperty("ask_price", out var askProp) && askProp.TryGetDouble(out var askPrice))
+                quote.AskPrice = askPrice;
+
+            tcs.TrySetResult(quote);
         }
 
         private void HandleAuthorize(JsonElement root)
