@@ -1,0 +1,323 @@
+<Window x:Class="DerivSmartBotDesktop.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:DerivSmartBotDesktop.Views.Controls"
+        xmlns:oxy="http://oxyplot.org/wpf"
+        Title="Deriv Smart Bot" Height="900" Width="1400"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBackgroundBrush}">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="64"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="300"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="{DynamicResource TopBarBackgroundBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
+            <Grid Margin="16,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="DerivSmartBot" FontSize="18" FontWeight="SemiBold"/>
+                    <controls:StatusBadge Text="{Binding ModeBadgeText}"
+                                          IndicatorBrush="{Binding ModeBadgeBrush}"
+                                          BadgeBrush="{DynamicResource BadgeNeutralBrush}"
+                                          Margin="12,0,0,0"/>
+                    <controls:StatusBadge Text="{Binding IsConnected, Converter={StaticResource BoolToText_Connected}}"
+                                          IndicatorBrush="{Binding ConnectionBrush}"
+                                          BadgeBrush="{DynamicResource BadgeNeutralBrush}"
+                                          Margin="8,0,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="Start" Style="{StaticResource PrimaryButton}" Command="{Binding StartCommand}" Margin="0,0,8,0"/>
+                    <Button Content="Stop" Style="{StaticResource GhostButton}" Command="{Binding StopCommand}" Margin="0,0,8,0"/>
+                    <Button Content="Settings" Command="{Binding OpenSettingsCommand}" Margin="0,0,8,0"/>
+                    <Button Content="Emergency Stop" Style="{StaticResource DangerButton}" Command="{Binding EmergencyStopCommand}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1" Margin="16,12,16,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="240"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="360"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Background="{DynamicResource SidebarBackgroundBrush}" BorderBrush="{DynamicResource SidebarBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="12">
+                <StackPanel>
+                    <TextBlock Text="Watchlist" FontWeight="SemiBold"/>
+                    <TextBox Margin="0,8,0,8"/>
+                    <ListBox ItemsSource="{Binding WatchlistSymbols}"
+                             VirtualizingPanel.IsVirtualizing="True"
+                             VirtualizingPanel.VirtualizationMode="Recycling"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{DynamicResource PanelBackgroundBrush}" CornerRadius="6" Padding="8" Margin="0,0,0,6">
+                                    <TextBlock Text="{Binding}"/>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </StackPanel>
+            </Border>
+
+            <StackPanel Grid.Column="1" Margin="12,0">
+                <ItemsControl ItemsSource="{Binding Kpis}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Columns="3"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <controls:KpiCard Title="{Binding Title}" Value="{Binding Value}" SubValue="{Binding SubValue}"
+                                              AccentBrush="{Binding AccentBrush}" Margin="0,0,12,12"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Grid Margin="0,12,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,12,0">
+                        <StackPanel>
+                            <TextBlock Text="Equity Curve" FontWeight="SemiBold"/>
+                            <oxy:PlotView Height="160"
+                                          Background="Transparent"
+                                          Model="{Binding EquityPlotModel}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}">
+                        <StackPanel>
+                            <TextBlock Text="Drawdown" FontWeight="SemiBold"/>
+                            <oxy:PlotView Height="160"
+                                          Background="Transparent"
+                                          Model="{Binding DrawdownPlotModel}"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="Active Contract" FontWeight="SemiBold"/>
+                            <TextBlock Text="{Binding ActiveSymbol}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
+                            <TextBlock Text="{Binding ActiveStrategy, StringFormat=Strategy: {0}}"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" Margin="0,4,0,0"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Direction" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <TextBlock Text="{Binding ActiveDirection}"/>
+                            <TextBlock Text="Stake" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,6,0,0"/>
+                            <TextBlock Text="{Binding ActiveStake, StringFormat=$ {0:0.00}}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Contract ID" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <TextBlock Text="{Binding ActiveContractId}"/>
+                            <TextBlock Text="{Binding ActiveDuration, StringFormat=Duration: {0}}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,6,0,0"/>
+                            <TextBlock Text="{Binding ActiveRemaining, StringFormat=Remaining: {0}}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                            <TextBlock Text="Status" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,6,0,0"/>
+                            <TextBlock Text="{Binding ActiveStatus}"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </StackPanel>
+
+            <StackPanel Grid.Column="2" Margin="0,0,0,0">
+                <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="Strategy Performance" FontWeight="SemiBold"/>
+                        <DataGrid ItemsSource="{Binding StrategyRows}"
+                                  AutoGenerateColumns="False"
+                                  CanUserAddRows="False"
+                                  EnableRowVirtualization="True"
+                                  VirtualizingPanel.IsVirtualizing="True"
+                                  VirtualizingPanel.VirtualizationMode="Recycling"
+                                  GridLinesVisibility="None"
+                                  HeadersVisibility="Column"
+                                  Margin="0,8,0,0">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Strategy" Binding="{Binding Strategy}" Width="*"/>
+                                <DataGridTextColumn Header="Win50" Binding="{Binding WinRate50, StringFormat={}{0:0.0}%}" Width="70"/>
+                                <DataGridTextColumn Header="Win200" Binding="{Binding WinRate200, StringFormat={}{0:0.0}%}" Width="70"/>
+                                <DataGridTextColumn Header="Avg P/L" Binding="{Binding AvgPL, StringFormat=$ {0:0.00}}" Width="80"/>
+                                <DataGridTextColumn Header="Trades" Binding="{Binding Trades}" Width="60"/>
+                                <DataGridCheckBoxColumn Header="Enabled" Binding="{Binding IsEnabled}" Width="60"/>
+                                <DataGridTextColumn Header="Duration" Binding="{Binding RecommendedDuration}" Width="80"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource CardBorderStyle}">
+                    <StackPanel>
+                        <TextBlock Text="Symbol Heat" FontWeight="SemiBold"/>
+                        <ItemsControl ItemsSource="{Binding SymbolTiles}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Background="Transparent" BorderThickness="0"
+                                            Command="{Binding DataContext.PinSymbolCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding}">
+                                        <controls:SymbolTile Symbol="{Binding Symbol}" Heat="{Binding Heat}" Regime="{Binding Regime}"
+                                                             WinRate="{Binding WinRate}" Volatility="{Binding Volatility}"
+                                                             LastSignal="{Binding LastSignal}" Width="150" Margin="0,0,8,8"/>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource CardBorderStyle}">
+                    <StackPanel>
+                        <TextBlock Text="Risk Panel" FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding RiskState, StringFormat=State: {0}}" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Text="{Binding DailyLossLimit, StringFormat=Daily Loss Limit: {0:P0}}" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Text="{Binding MaxConsecutiveLosses, StringFormat=Max Losses: {0}}" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Text="{Binding CooldownSeconds, StringFormat=Cooldown: {0}s}" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Text="{Binding StakeModel, StringFormat=Stake Model: {0}}" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <CheckBox Content="Relax Gates"
+                                  IsChecked="{Binding RelaxGatesEnabled}"
+                                  IsEnabled="{Binding IsLiveMode, Converter={StaticResource BoolInverseConverter}}"
+                                  Margin="0,6,0,0"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Grid>
+
+        <Border Grid.Row="2" Background="{DynamicResource PanelBackgroundBrush}" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="12" Margin="16,0,16,16" Padding="12">
+            <TabControl>
+                <TabItem Header="Trades">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBox Width="160" Text="{Binding Trades.FilterSymbol, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0"/>
+                            <TextBox Width="160" Text="{Binding Trades.FilterStrategy, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0"/>
+                            <TextBox Width="120" Text="{Binding Trades.FilterResult, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0"/>
+                            <Button Content="Apply Filters" Command="{Binding Trades.ApplyFiltersCommand}" Margin="0,0,8,0"/>
+                            <Button Content="Export CSV" Command="{Binding ExportTradesCommand}"/>
+                        </StackPanel>
+
+                        <DataGrid Grid.Row="1"
+                                  ItemsSource="{Binding Trades.TradesView}"
+                                  AutoGenerateColumns="False"
+                                  CanUserAddRows="False"
+                                  EnableRowVirtualization="True"
+                                  VirtualizingPanel.IsVirtualizing="True"
+                                  VirtualizingPanel.VirtualizationMode="Recycling"
+                                  HeadersVisibility="Column"
+                                  GridLinesVisibility="None">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Time" Binding="{Binding Time, StringFormat={}{0:HH:mm:ss}}" Width="110"/>
+                                <DataGridTextColumn Header="Symbol" Binding="{Binding Symbol}" Width="90"/>
+                                <DataGridTextColumn Header="Strategy" Binding="{Binding Strategy}" Width="*"/>
+                                <DataGridTextColumn Header="Dir" Binding="{Binding Direction}" Width="60"/>
+                                <DataGridTextColumn Header="Stake" Binding="{Binding Stake, StringFormat=$ {0:0.00}}" Width="80"/>
+                                <DataGridTextColumn Header="P/L" Binding="{Binding Profit, StringFormat=$ {0:0.00}}" Width="80"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </TabItem>
+
+                <TabItem Header="Logs">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBox Width="240" Text="{Binding Logs.SearchText, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0"/>
+                            <CheckBox Content="Auto-scroll" IsChecked="{Binding Logs.AutoScroll}" Margin="0,0,8,0"/>
+                            <Button Content="Copy" Command="{Binding Logs.CopyCommand}"/>
+                        </StackPanel>
+
+                        <ListBox Grid.Row="1"
+                                 ItemsSource="{Binding Logs.LogsView}"
+                                 VirtualizingPanel.IsVirtualizing="True"
+                                 VirtualizingPanel.VirtualizationMode="Recycling"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="6">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Time, StringFormat={}{0:HH:mm:ss}}" Foreground="{DynamicResource TextMutedBrush}"/>
+                                            <TextBlock Text="{Binding Message}" Foreground="{Binding SeverityBrush}"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </TabItem>
+
+                <TabItem Header="Alerts">
+                    <ListBox ItemsSource="{Binding Alerts.Alerts}"
+                             VirtualizingPanel.IsVirtualizing="True"
+                             VirtualizingPanel.VirtualizationMode="Recycling"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="6">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold"/>
+                                        <TextBlock Text="{Binding Description}" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </TabItem>
+
+                <TabItem Header="Diagnostics">
+                    <Grid Margin="0,6,0,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="Connection" FontWeight="SemiBold"/>
+                        <TextBlock Grid.Row="1" Text="{Binding Diagnostics.ConnectionStatus}" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Grid.Row="2" Text="Message Rate" FontWeight="SemiBold"/>
+                        <TextBlock Grid.Row="2" Margin="120,0,0,0" Text="{Binding Diagnostics.MessageRate, StringFormat={}{0:0.0}/s}" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Grid.Row="3" Text="UI Refresh" FontWeight="SemiBold"/>
+                        <TextBlock Grid.Row="3" Margin="120,0,0,0" Text="{Binding Diagnostics.UiRefreshRate, StringFormat={}{0:0.0} ms}" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Grid.Row="4" Text="{Binding Diagnostics.Latency, StringFormat=Latency: {0}}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,6,0,0"/>
+                        <TextBlock Grid.Row="5" Text="{Binding Diagnostics.LatestException}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                    </Grid>
+                </TabItem>
+            </TabControl>
+        </Border>
+
+        <controls:ToastHost Grid.RowSpan="3"/>
+    </Grid>
+</Window>

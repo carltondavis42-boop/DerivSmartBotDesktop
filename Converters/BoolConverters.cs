@@ -33,4 +33,18 @@ namespace DerivSmartBotDesktop.Converters
             throw new NotSupportedException();
         }
     }
+
+    [ValueConversion(typeof(bool), typeof(bool))]
+    public class BoolInverseConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return value is bool b ? !b : value;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return value is bool b ? !b : value;
+        }
+    }
 }

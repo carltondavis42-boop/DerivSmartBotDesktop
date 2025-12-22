@@ -2,159 +2,17 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conv="clr-namespace:DerivSmartBotDesktop.Converters"
-             StartupUri="MainWindow.xaml">
+             StartupUri="Views/MainWindow.xaml">
     <Application.Resources>
-        <conv:BoolToTextConnectedConverter x:Key="BoolToText_Connected" />
-        <conv:BoolToTextBotConverter x:Key="BoolToText_Bot" />
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/Dark.xaml"/>
+                <ResourceDictionary Source="Styles/Controls.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
 
-        <LinearGradientBrush x:Key="ShellBackgroundBrush" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#0E131A" Offset="0" />
-            <GradientStop Color="#121925" Offset="0.6" />
-            <GradientStop Color="#0B1118" Offset="1" />
-        </LinearGradientBrush>
-        <SolidColorBrush x:Key="PanelBrush" Color="#121A24"/>
-        <SolidColorBrush x:Key="PanelBorderBrush" Color="#243244"/>
-        <SolidColorBrush x:Key="HeaderBrush" Color="#0F1722"/>
-        <SolidColorBrush x:Key="BadgeBrush" Color="#182231"/>
-        <SolidColorBrush x:Key="BadgeBorderBrush" Color="#2B3A4F"/>
-        <SolidColorBrush x:Key="InputBackgroundBrush" Color="#0E1620"/>
-        <SolidColorBrush x:Key="TableRowBrush" Color="#121B26"/>
-        <SolidColorBrush x:Key="TableHeaderBrush" Color="#0F1822"/>
-        <SolidColorBrush x:Key="LogBackgroundBrush" Color="#0E1620"/>
-        <SolidColorBrush x:Key="ButtonBrush" Color="#1A2533"/>
-        <SolidColorBrush x:Key="ButtonBorderBrush" Color="#2B3A4F"/>
-
-        <SolidColorBrush x:Key="AccentBrush" Color="#3BAFDA"/>
-        <SolidColorBrush x:Key="AccentSoftBrush" Color="#1C2A35"/>
-        <SolidColorBrush x:Key="PositiveBrush" Color="#3CCB90"/>
-        <SolidColorBrush x:Key="NegativeBrush" Color="#E35D6A"/>
-        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F1F5F9"/>
-        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#A9B4C4"/>
-
-        <Style TargetType="TextBlock">
-            <Setter Property="FontFamily" Value="Bahnschrift"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-        </Style>
-
-        <Style TargetType="GroupBox">
-            <Setter Property="Margin" Value="0,0,0,12"/>
-            <Setter Property="Padding" Value="12"/>
-            <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="FontFamily" Value="Bahnschrift"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="GroupBox">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="10">
-                            <DockPanel>
-                                <Border DockPanel.Dock="Top"
-                                        Background="{DynamicResource HeaderBrush}"
-                                        CornerRadius="10,10,0,0"
-                                        Padding="10,6">
-                                    <ContentPresenter ContentSource="Header"
-                                                      RecognizesAccessKey="True"
-                                                      HorizontalAlignment="Left"
-                                                      VerticalAlignment="Center" />
-                                </Border>
-                                <Border Padding="{TemplateBinding Padding}">
-                                    <ContentPresenter />
-                                </Border>
-                            </DockPanel>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="LabelText" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
-            <Setter Property="FontSize" Value="11"/>
-        </Style>
-
-        <Style x:Key="ValueText" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="18"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-        </Style>
-
-        <Style x:Key="KpiCard" TargetType="Border">
-            <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="12"/>
-            <Setter Property="Padding" Value="12"/>
-        </Style>
-
-        <Style TargetType="Button">
-            <Setter Property="FontFamily" Value="Bahnschrift"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Padding" Value="10,6"/>
-            <Setter Property="Background" Value="{DynamicResource ButtonBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource ButtonBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-        </Style>
-
-        <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
-            <Setter Property="Foreground" Value="#F8FAFC"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-        </Style>
-
-        <Style x:Key="GhostButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-        </Style>
-
-        <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Background" Value="#34171B"/>
-            <Setter Property="Foreground" Value="#FDE8E8"/>
-            <Setter Property="BorderBrush" Value="#4B1E24"/>
-        </Style>
-
-        <Style TargetType="TextBox">
-            <Setter Property="Background" Value="{DynamicResource InputBackgroundBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8,4"/>
-            <Setter Property="FontFamily" Value="Consolas"/>
-            <Setter Property="FontSize" Value="12"/>
-        </Style>
-
-        <Style TargetType="ComboBox">
-            <Setter Property="Background" Value="{DynamicResource InputBackgroundBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="6,2"/>
-            <Setter Property="FontFamily" Value="Bahnschrift"/>
-            <Setter Property="FontSize" Value="12"/>
-        </Style>
-
-        <Style TargetType="DataGrid">
-            <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-        </Style>
-
-        <Style TargetType="DataGridRow">
-            <Setter Property="Background" Value="{DynamicResource TableRowBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}"/>
-        </Style>
-
-        <Style TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="{DynamicResource TableHeaderBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
-            <Setter Property="FontFamily" Value="Bahnschrift"/>
-            <Setter Property="FontSize" Value="12"/>
-        </Style>
+            <conv:BoolToTextConnectedConverter x:Key="BoolToText_Connected" />
+            <conv:BoolToTextBotConverter x:Key="BoolToText_Bot" />
+            <conv:BoolInverseConverter x:Key="BoolInverseConverter" />
+        </ResourceDictionary>
     </Application.Resources>
 </Application>
