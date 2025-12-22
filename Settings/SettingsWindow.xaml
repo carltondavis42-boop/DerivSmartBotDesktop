@@ -12,6 +12,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -42,7 +43,8 @@
         <TextBlock Text="Mode:" Grid.Row="3" Grid.Column="0"
                    VerticalAlignment="Center" Margin="0,0,5,5"/>
         <ComboBox x:Name="ModeComboBox" Grid.Row="3" Grid.Column="1"
-                  Margin="0,0,0,5">
+                  Margin="0,0,0,5"
+                  SelectionChanged="ModeComboBox_SelectionChanged">
             <ComboBoxItem Content="DEMO"/>
             <ComboBoxItem Content="LIVE"/>
         </ComboBox>
@@ -54,15 +56,22 @@
                   Content="Paper trade using live proposals"
                   Margin="0,0,0,5"/>
 
+        <!-- Relax environment (demo only) -->
+        <TextBlock Text="Relax tests:" Grid.Row="5" Grid.Column="0"
+                   VerticalAlignment="Center" Margin="0,0,5,5"/>
+        <CheckBox x:Name="RelaxEnvCheckBox" Grid.Row="5" Grid.Column="1"
+                  Content="Loosen guards for testing (demo only)"
+                  Margin="0,0,0,5"/>
+
         <!-- Info -->
-        <TextBlock Grid.Row="5" Grid.ColumnSpan="2"
+        <TextBlock Grid.Row="6" Grid.ColumnSpan="2"
                    TextWrapping="Wrap"
                    Foreground="Gray"
                    Margin="0,5,0,5"
                    Text="Enter your Deriv App ID, API token, and the symbol to trade (e.g., R_100, R_50, etc.)."/>
 
         <!-- Buttons -->
-        <StackPanel Grid.Row="6" Grid.ColumnSpan="2"
+        <StackPanel Grid.Row="7" Grid.ColumnSpan="2"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     Margin="0,5,0,0">

@@ -21,6 +21,8 @@ namespace DerivSmartBotDesktop.Settings
             SymbolTextBox.Text = _initialSettings.Symbol ?? "R_100";
             ModeComboBox.SelectedIndex = _initialSettings.IsDemo ? 0 : 1;
             ForwardTestCheckBox.IsChecked = _initialSettings.ForwardTestEnabled;
+            RelaxEnvCheckBox.IsChecked = _initialSettings.RelaxEnvironmentForTesting;
+            UpdateRelaxToggle();
         }
 
         private void Ok_Click(object sender, RoutedEventArgs e)
@@ -33,7 +35,8 @@ namespace DerivSmartBotDesktop.Settings
                     ? "R_100"
                     : SymbolTextBox.Text.Trim(),
                 IsDemo = ModeComboBox.SelectedIndex != 1,
-                ForwardTestEnabled = ForwardTestCheckBox.IsChecked == true
+                ForwardTestEnabled = ForwardTestCheckBox.IsChecked == true,
+                RelaxEnvironmentForTesting = RelaxEnvCheckBox.IsChecked == true
             };
 
             if (!s.IsValid)
@@ -58,7 +61,8 @@ namespace DerivSmartBotDesktop.Settings
                     ? "R_100"
                     : SymbolTextBox.Text.Trim(),
                 IsDemo = ModeComboBox.SelectedIndex != 1,
-                ForwardTestEnabled = ForwardTestCheckBox.IsChecked == true
+                ForwardTestEnabled = ForwardTestCheckBox.IsChecked == true,
+                RelaxEnvironmentForTesting = RelaxEnvCheckBox.IsChecked == true
             };
 
             if (!s.IsValid)
@@ -99,6 +103,19 @@ namespace DerivSmartBotDesktop.Settings
                 if (button != null)
                     button.IsEnabled = true;
             }
+        }
+
+        private void ModeComboBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            UpdateRelaxToggle();
+        }
+
+        private void UpdateRelaxToggle()
+        {
+            var isDemo = ModeComboBox.SelectedIndex != 1;
+            RelaxEnvCheckBox.IsEnabled = isDemo;
+            if (!isDemo)
+                RelaxEnvCheckBox.IsChecked = false;
         }
 
     }

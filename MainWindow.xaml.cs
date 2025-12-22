@@ -214,7 +214,7 @@ namespace DerivSmartBotDesktop
                 tradeLogger,
                 strategySelector);
             _controller.ForwardTestEnabled = _settings.ForwardTestEnabled;
-            _controller.RelaxEnvironmentForTesting = _settings.IsDemo;
+            _controller.RelaxEnvironmentForTesting = _settings.IsDemo && _settings.RelaxEnvironmentForTesting;
 
             // 7) Symbols to watch (primary + default list)
             var watchList = new List<string>();
@@ -246,6 +246,8 @@ namespace DerivSmartBotDesktop
             _viewModel.AddLog($"Account mode: {(_settings.IsDemo ? "DEMO" : "LIVE")}");
             if (_settings.ForwardTestEnabled)
                 _viewModel.AddLog("Forward test enabled: paper trades use live proposal pricing.");
+            if (_controller.RelaxEnvironmentForTesting)
+                _viewModel.AddLog("Relaxed testing guards enabled (demo only).");
 
             // Log which ML components are being used
             if (!string.IsNullOrEmpty(regimeModelInfo))
