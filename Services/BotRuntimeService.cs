@@ -37,6 +37,7 @@ namespace DerivSmartBotDesktop.Services
             if (!_settings.IsValid)
             {
                 _useMockData = true;
+                _snapshotTimer ??= new Timer(_ => PublishSnapshot(), null, 0, 300);
                 return;
             }
 
@@ -432,7 +433,158 @@ namespace DerivSmartBotDesktop.Services
                 UiRefreshRate = 300,
                 Latency = "-",
                 LatestException = "-",
-                Watchlist = new List<string> { "R_100", "R_50", "R_25" }
+                Watchlist = new List<string> { "R_100", "R_50", "R_25", "R_10" },
+                Trades = BuildMockTrades(),
+                Strategies = BuildMockStrategies(),
+                Symbols = BuildMockSymbols(),
+                Logs = BuildMockLogs(),
+                Alerts = BuildMockAlerts()
+            };
+        }
+
+        private static List<TradeRowViewModel> BuildMockTrades()
+        {
+            return new List<TradeRowViewModel>
+            {
+                new TradeRowViewModel
+                {
+                    Id = "mock-1",
+                    Time = DateTime.Now.AddMinutes(-3),
+                    Symbol = "R_100",
+                    Strategy = "Momentum",
+                    Direction = "CALL",
+                    Stake = 2.5,
+                    Profit = 1.9
+                },
+                new TradeRowViewModel
+                {
+                    Id = "mock-2",
+                    Time = DateTime.Now.AddMinutes(-2),
+                    Symbol = "R_50",
+                    Strategy = "RangeLowVol",
+                    Direction = "PUT",
+                    Stake = 2.0,
+                    Profit = -2.0
+                },
+                new TradeRowViewModel
+                {
+                    Id = "mock-3",
+                    Time = DateTime.Now.AddMinutes(-1),
+                    Symbol = "R_25",
+                    Strategy = "TrendBreakout",
+                    Direction = "CALL",
+                    Stake = 3.0,
+                    Profit = 2.4
+                }
+            };
+        }
+
+        private static List<StrategyRowViewModel> BuildMockStrategies()
+        {
+            return new List<StrategyRowViewModel>
+            {
+                new StrategyRowViewModel
+                {
+                    Strategy = "Momentum",
+                    WinRate50 = 62.5,
+                    WinRate200 = 58.2,
+                    AvgPL = 0.85,
+                    Trades = 120,
+                    IsEnabled = true,
+                    RecommendedDuration = "1t"
+                },
+                new StrategyRowViewModel
+                {
+                    Strategy = "RangeLowVol",
+                    WinRate50 = 54.1,
+                    WinRate200 = 51.9,
+                    AvgPL = 0.32,
+                    Trades = 96,
+                    IsEnabled = true,
+                    RecommendedDuration = "2t"
+                },
+                new StrategyRowViewModel
+                {
+                    Strategy = "TrendBreakout",
+                    WinRate50 = 48.0,
+                    WinRate200 = 52.3,
+                    AvgPL = -0.12,
+                    Trades = 84,
+                    IsEnabled = false,
+                    RecommendedDuration = "1t"
+                }
+            };
+        }
+
+        private static List<SymbolTileViewModel> BuildMockSymbols()
+        {
+            return new List<SymbolTileViewModel>
+            {
+                new SymbolTileViewModel
+                {
+                    Symbol = "R_100",
+                    Heat = 0.72,
+                    Regime = "Trending",
+                    WinRate = 61.2,
+                    LastSignal = "Active",
+                    Volatility = 0.38
+                },
+                new SymbolTileViewModel
+                {
+                    Symbol = "R_50",
+                    Heat = 0.44,
+                    Regime = "Sideways",
+                    WinRate = 53.7,
+                    LastSignal = "Active",
+                    Volatility = 0.22
+                },
+                new SymbolTileViewModel
+                {
+                    Symbol = "R_25",
+                    Heat = 0.31,
+                    Regime = "Choppy",
+                    WinRate = 47.5,
+                    LastSignal = "Watch",
+                    Volatility = 0.18
+                }
+            };
+        }
+
+        private static List<LogItemViewModel> BuildMockLogs()
+        {
+            return new List<LogItemViewModel>
+            {
+                new LogItemViewModel
+                {
+                    Id = "log-1",
+                    Time = DateTime.Now.AddMinutes(-2),
+                    Message = "Mock mode: waiting for connection.",
+                    Severity = LogSeverity.Warning,
+                    SeverityBrush = Brushes.Goldenrod
+                },
+                new LogItemViewModel
+                {
+                    Id = "log-2",
+                    Time = DateTime.Now.AddMinutes(-1),
+                    Message = "Snapshot feed running (mock).",
+                    Severity = LogSeverity.Info,
+                    SeverityBrush = Brushes.LightGray
+                }
+            };
+        }
+
+        private static List<AlertItemViewModel> BuildMockAlerts()
+        {
+            return new List<AlertItemViewModel>
+            {
+                new AlertItemViewModel
+                {
+                    Id = "alert-mock",
+                    Time = DateTime.Now,
+                    Title = "Mock Mode",
+                    Description = "No live connection. Using demo data.",
+                    Category = "Info"
+                }
             };
         }
     }
