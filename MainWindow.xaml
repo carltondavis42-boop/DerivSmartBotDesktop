@@ -138,11 +138,32 @@
 
                 </StackPanel>
 
-                <TextBlock Grid.Row="1"
-                           Text="{Binding StatusText}"
-                           Foreground="{DynamicResource TextSecondaryBrush}"
-                           TextWrapping="Wrap"
-                           Margin="0,6,0,0"/>
+                <StackPanel Grid.Row="1" Grid.Column="0">
+                    <Border CornerRadius="8"
+                            Padding="10,4"
+                            Margin="0,6,0,4">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="{DynamicResource PositiveBrush}"/>
+                                <Setter Property="BorderBrush" Value="{DynamicResource PositiveBrush}"/>
+                                <Setter Property="BorderThickness" Value="1"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsLiveMode}" Value="True">
+                                        <Setter Property="Background" Value="{DynamicResource NegativeBrush}"/>
+                                        <Setter Property="BorderBrush" Value="{DynamicResource NegativeBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <TextBlock Text="{Binding AccountModeText, StringFormat={}{0} MODE}"
+                                   FontSize="13"
+                                   FontWeight="Bold"
+                                   Foreground="White"/>
+                    </Border>
+                    <TextBlock Text="{Binding StatusText}"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
 
                 <StackPanel Grid.Column="1" Grid.RowSpan="2" Orientation="Horizontal" VerticalAlignment="Center">
                     <CheckBox Content="Light theme"
