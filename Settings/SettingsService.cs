@@ -14,6 +14,7 @@ namespace DerivSmartBotDesktop.Settings
             public string Symbol { get; set; }
             public bool IsDemo { get; set; } = true;
             public bool ForwardTestEnabled { get; set; } = false;
+            public bool RelaxEnvironmentForTesting { get; set; } = false;
             public string ApiTokenProtected { get; set; }
             public string ApiToken { get; set; } // legacy
         }
@@ -48,7 +49,8 @@ namespace DerivSmartBotDesktop.Settings
                     AppId = store.AppId,
                     Symbol = store.Symbol,
                     IsDemo = store.IsDemo,
-                    ForwardTestEnabled = store.ForwardTestEnabled
+                    ForwardTestEnabled = store.ForwardTestEnabled,
+                    RelaxEnvironmentForTesting = store.RelaxEnvironmentForTesting
                 };
 
                 if (!string.IsNullOrWhiteSpace(store.ApiTokenProtected))
@@ -79,6 +81,7 @@ namespace DerivSmartBotDesktop.Settings
                     Symbol = settings.Symbol,
                     IsDemo = settings.IsDemo,
                     ForwardTestEnabled = settings.ForwardTestEnabled,
+                    RelaxEnvironmentForTesting = settings.RelaxEnvironmentForTesting,
                     ApiTokenProtected = ProtectToken(settings.ApiToken)
                 };
 
