@@ -47,6 +47,7 @@ namespace DerivSmartBotDesktop.Services
             await client.ConnectAsync();
             await client.AuthorizeAsync(_settings.ApiToken);
             await client.WaitUntilAuthorizedAsync();
+            await client.RequestBalanceAsync();
 
             var profileCfg = BotProfileConfig.ForProfile(BotProfile.Balanced);
             _riskSettings = profileCfg.Risk;
