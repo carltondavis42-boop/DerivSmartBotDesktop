@@ -21,6 +21,7 @@ namespace DerivSmartBotDesktop.Views
 
             _viewModel = new MainViewModel(runtimeService, _themeService, toastService, exportService);
             _viewModel.RequestOpenSettings += OpenSettings;
+            _viewModel.RequestOpenLogs += OpenLogs;
 
             DataContext = _viewModel;
             Loaded += MainWindow_Loaded;
@@ -51,6 +52,16 @@ namespace DerivSmartBotDesktop.Views
                 SettingsService.Save(updated);
                 _viewModel.InitializeRuntime(updated);
             }
+        }
+
+        private void OpenLogs()
+        {
+            var win = new LogsWindow
+            {
+                Owner = this,
+                DataContext = _viewModel.Logs
+            };
+            win.Show();
         }
 
         private bool OpenSettingsDialog(AppSettings settings, out AppSettings updated)

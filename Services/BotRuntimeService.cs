@@ -13,6 +13,13 @@ namespace DerivSmartBotDesktop.Services
 {
     public class BotRuntimeService
     {
+        private static readonly string[] DefaultSymbols =
+        {
+            "R_10", "R_25", "R_50", "R_75", "R_100",
+            "1HZ10V", "1HZ15V", "1HZ25V", "1HZ30V", "1HZ90V", "1HZ100V", "1HZ75V",
+            "STPRNG", "STPRNG2", "STPRNG3", "STPRNG4", "STPRNG5",
+            "JD10", "JD25", "JD50", "JD75", "JD100"
+        };
         private readonly object _lock = new();
         private SmartBotController? _controller;
         private DerivWebSocketClient? _client;
@@ -145,6 +152,10 @@ namespace DerivSmartBotDesktop.Services
             controller.SetSymbolsToWatch(new[] { _settings.Symbol });
             controller.BotEvent += OnBotEvent;
             _controller = controller;
+
+            controller.SetSymbolsToWatch(DefaultSymbols);
+            controller.SetAutoSymbolMode(AutoSymbolMode.Auto);
+            _ = SubscribeSymbolsAsync(DefaultSymbols);
 
             _snapshotTimer ??= new Timer(_ => PublishSnapshot(), null, 0, 300);
         }
@@ -285,8 +296,8 @@ namespace DerivSmartBotDesktop.Services
             snapshot.Symbols = BuildSymbolTiles();
 
             var watchlist = _controller?.SymbolsToWatch?.ToList() ?? new List<string>();
-            if (watchlist.Count == 0 && !string.IsNullOrWhiteSpace(_settings?.Symbol))
-                watchlist.Add(_settings.Symbol);
+            if (watchlist.Count == 0)
+                watchlist.AddRange(DefaultSymbols);
             snapshot.Watchlist = watchlist;
 
             lock (_lock)
@@ -464,7 +475,7 @@ namespace DerivSmartBotDesktop.Services
                 UiRefreshRate = 300,
                 Latency = "-",
                 LatestException = "-",
-                Watchlist = new List<string> { "R_100", "R_50", "R_25", "R_10" },
+                Watchlist = DefaultSymbols.ToList(),
                 Trades = BuildMockTrades(),
                 Strategies = BuildMockStrategies(),
                 Symbols = BuildMockSymbols(),

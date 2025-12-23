@@ -13,7 +13,6 @@
             <conv:BoolToTextConnectedConverter x:Key="BoolToText_Connected" />
             <conv:BoolToTextBotConverter x:Key="BoolToText_Bot" />
             <conv:BoolInverseConverter x:Key="BoolInverseConverter" />
-            <conv:BoolToLogToggleTextConverter x:Key="BoolToLogToggleTextConverter" />
             <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         </ResourceDictionary>
     </Application.Resources>

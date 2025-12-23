@@ -243,14 +243,13 @@
                             <TextBox Width="240" Text="{Binding Logs.SearchText, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0"/>
                             <CheckBox Content="Auto-scroll" IsChecked="{Binding Logs.AutoScroll}" Margin="0,0,8,0"/>
                             <Button Content="Copy" Width="120" Command="{Binding Logs.CopyCommand}"/>
-                            <Button Content="{Binding IsLogsOpen, Converter={StaticResource BoolToLogToggleTextConverter}}"
-                                    Width="120"
+                            <Button Content="Open Logs Window"
+                                    Width="160"
                                     Margin="8,0,0,0"
-                                    Command="{Binding ToggleLogsCommand}"/>
+                                    Command="{Binding OpenLogsWindowCommand}"/>
                         </StackPanel>
 
                         <ListBox Grid.Row="1"
-                                 Visibility="{Binding IsLogsOpen, Converter={StaticResource BoolToVisibilityConverter}}"
                                  ItemsSource="{Binding Logs.LogsView}"
                                  VirtualizingPanel.IsVirtualizing="True"
                                  VirtualizingPanel.VirtualizationMode="Recycling"
