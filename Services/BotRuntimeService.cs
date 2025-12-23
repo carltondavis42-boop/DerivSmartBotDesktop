@@ -39,6 +39,8 @@ namespace DerivSmartBotDesktop.Services
         private bool _autoRotateEnabled = true;
         private bool _relaxEnvFilters;
         private AutoTrainingService? _autoTrainingService;
+        private int _reconnectInProgress;
+        private CancellationTokenSource? _reconnectCts;
 
         public event Action<BotSnapshot>? SnapshotAvailable;
 
@@ -56,6 +58,7 @@ namespace DerivSmartBotDesktop.Services
             _client?.Dispose();
             var client = new DerivWebSocketClient(_settings.AppId);
             _client = client;
+            _client.ConnectionClosed += OnConnectionClosed;
             await client.ConnectAsync();
             await client.AuthorizeAsync(_settings.ApiToken);
             await client.WaitUntilAuthorizedAsync();
@@ -186,6 +189,75 @@ namespace DerivSmartBotDesktop.Services
         public void ClearAutoPause()
         {
             _controller?.ClearAutoPause();
+        }
+
+        private void OnConnectionClosed(string reason)
+        {
+            _ = HandleReconnectAsync(reason);
+        }
+
+        private async Task HandleReconnectAsync(string reason)
+        {
+            if (_useMockData)
+                return;
+
+            if (Interlocked.Exchange(ref _reconnectInProgress, 1) == 1)
+                return;
+
+            _reconnectCts?.Cancel();
+            _reconnectCts = new CancellationTokenSource();
+            var token = _reconnectCts.Token;
+
+            OnBotEvent($"[Reconnect] Disconnected: {reason}");
+
+            var delays = new[] { 2, 5, 10, 20, 30 };
+            var attempt = 0;
+
+            try
+            {
+                while (!token.IsCancellationRequested)
+                {
+                    var delay = delays[Math.Min(attempt, delays.Length - 1)];
+                    attempt++;
+
+                    try
+                    {
+                        OnBotEvent($"[Reconnect] Attempt {attempt} in {delay}s...");
+                        await Task.Delay(TimeSpan.FromSeconds(delay), token).ConfigureAwait(false);
+
+                        var client = _client;
+                        if (client == null)
+                            return;
+
+                        await client.ConnectAsync().ConfigureAwait(false);
+                        await client.AuthorizeAsync(_settings.ApiToken).ConfigureAwait(false);
+                        await client.WaitUntilAuthorizedAsync().ConfigureAwait(false);
+                        await client.RequestBalanceAsync().ConfigureAwait(false);
+
+                        var watchlist = _controller?.SymbolsToWatch?.ToList()
+                                        ?? ParseSymbols(_settings.WatchlistCsv);
+                        if (watchlist.Count == 0)
+                            watchlist = DefaultSymbols.ToList();
+
+                        await SubscribeSymbolsAsync(watchlist).ConfigureAwait(false);
+
+                        OnBotEvent("[Reconnect] Reconnected and resubscribed.");
+                        return;
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        return;
+                    }
+                    catch (Exception ex)
+                    {
+                        OnBotEvent($"[Reconnect] Failed: {ex.Message}");
+                    }
+                }
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _reconnectInProgress, 0);
+            }
         }
 
         public void ApplyWatchlist(IEnumerable<string> symbols)
