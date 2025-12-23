@@ -18,6 +18,7 @@ namespace DerivSmartBotDesktop.Services
         public double Drawdown { get; set; }
         public int TradesToday { get; set; }
         public string MarketRegime { get; set; } = string.Empty;
+        public double MarketHeatScore { get; set; }
         public string ActiveSymbol { get; set; } = string.Empty;
         public string ActiveStrategy { get; set; } = string.Empty;
         public string ActiveContractId { get; set; } = string.Empty;
@@ -32,6 +33,7 @@ namespace DerivSmartBotDesktop.Services
         public int CooldownSeconds { get; set; }
         public string StakeModel { get; set; } = string.Empty;
         public bool RelaxGatesEnabled { get; set; }
+        public string LastSkipReason { get; set; } = string.Empty;
         public string ConnectionStatus { get; set; } = string.Empty;
         public double MessageRate { get; set; }
         public double UiRefreshRate { get; set; }

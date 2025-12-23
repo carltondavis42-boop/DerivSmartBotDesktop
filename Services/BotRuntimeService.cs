@@ -34,6 +34,10 @@ namespace DerivSmartBotDesktop.Services
         private DateTime _lastSnapshot = DateTime.MinValue;
         private RiskSettings? _riskSettings;
         private BotRules? _botRules;
+        private BotProfile _currentProfile = BotProfile.Balanced;
+        private bool _autoStartEnabled = true;
+        private bool _autoRotateEnabled = true;
+        private bool _relaxEnvFilters;
 
         public event Action<BotSnapshot>? SnapshotAvailable;
 
@@ -57,7 +61,7 @@ namespace DerivSmartBotDesktop.Services
             await client.RequestBalanceAsync();
             _ = SubscribeSymbolsAsync(new[] { _settings.Symbol });
 
-            var profileCfg = BotProfileConfig.ForProfile(BotProfile.Balanced);
+            var profileCfg = BotProfileConfig.ForProfile(_currentProfile);
             _riskSettings = profileCfg.Risk;
             _botRules = profileCfg.Rules;
 
@@ -148,13 +152,14 @@ namespace DerivSmartBotDesktop.Services
                 strategySelector);
 
             controller.ForwardTestEnabled = _settings.ForwardTestEnabled;
-            controller.RelaxEnvironmentForTesting = _settings.RelaxEnvironmentForTesting;
+            controller.RelaxEnvironmentForTesting = _settings.RelaxEnvironmentForTesting || _relaxEnvFilters;
+            controller.AutoStartEnabled = _autoStartEnabled;
             controller.SetSymbolsToWatch(new[] { _settings.Symbol });
             controller.BotEvent += OnBotEvent;
             _controller = controller;
 
             controller.SetSymbolsToWatch(DefaultSymbols);
-            controller.SetAutoSymbolMode(AutoSymbolMode.Auto);
+            controller.SetAutoSymbolMode(_autoRotateEnabled ? AutoSymbolMode.Auto : AutoSymbolMode.Manual);
             _ = SubscribeSymbolsAsync(DefaultSymbols);
 
             _snapshotTimer ??= new Timer(_ => PublishSnapshot(), null, 0, 300);
@@ -180,6 +185,35 @@ namespace DerivSmartBotDesktop.Services
         {
             _controller?.SetSymbolsToWatch(symbols);
             _ = SubscribeSymbolsAsync(symbols);
+        }
+
+        public void ApplyProfile(BotProfile profile)
+        {
+            _currentProfile = profile;
+            var cfg = BotProfileConfig.ForProfile(profile);
+            _riskSettings = cfg.Risk;
+            _botRules = cfg.Rules;
+            _controller?.UpdateConfigs(cfg.Risk, cfg.Rules);
+        }
+
+        public void SetAutoStart(bool enabled)
+        {
+            _autoStartEnabled = enabled;
+            if (_controller != null)
+                _controller.AutoStartEnabled = enabled;
+        }
+
+        public void SetAutoRotation(bool enabled)
+        {
+            _autoRotateEnabled = enabled;
+            _controller?.SetAutoSymbolMode(enabled ? AutoSymbolMode.Auto : AutoSymbolMode.Manual);
+        }
+
+        public void SetRelaxEnvironment(bool enabled)
+        {
+            _relaxEnvFilters = enabled;
+            if (_controller != null)
+                _controller.RelaxEnvironmentForTesting = enabled;
         }
 
         public void SetActiveSymbol(string symbol)
@@ -253,12 +287,14 @@ namespace DerivSmartBotDesktop.Services
                 ActiveSymbol = _controller?.ActiveSymbol ?? "-",
                 ActiveStrategy = _controller?.ActiveStrategyName ?? "-",
                 MarketRegime = _controller?.CurrentDiagnostics?.Regime.ToString() ?? "Unknown",
+                MarketHeatScore = _controller?.MarketHeatScore ?? 0,
                 RiskState = _controller?.LastAutoPauseReason.ToString() ?? "None",
                 DailyLossLimit = _riskSettings?.MaxDailyDrawdownFraction ?? 0,
                 MaxConsecutiveLosses = _riskSettings?.MaxConsecutiveLosses ?? 0,
                 CooldownSeconds = _botRules?.TradeCooldown.TotalSeconds > 0 ? (int)_botRules.TradeCooldown.TotalSeconds : 0,
                 StakeModel = _riskSettings?.EnableDynamicStakeScaling == true ? "Dynamic" : "Fixed",
                 RelaxGatesEnabled = _settings.RelaxEnvironmentForTesting,
+                LastSkipReason = _controller?.LastSkipReason ?? "-",
                 ConnectionStatus = _controller?.IsConnected == true ? "Connected" : "Disconnected",
                 MessageRate = 0,
                 UiRefreshRate = 300,
@@ -402,7 +438,9 @@ namespace DerivSmartBotDesktop.Services
                 Regime = s.LastRegime.ToString(),
                 WinRate = s.WinRate,
                 LastSignal = s.IsDisabledForSession ? "Disabled" : "Active",
-                Volatility = s.LastRegimeScore
+                Volatility = s.LastRegimeScore,
+                Trades = s.TotalTrades,
+                NetPL = s.NetPL
             }).ToList();
         }
 
@@ -454,6 +492,7 @@ namespace DerivSmartBotDesktop.Services
                 Drawdown = _drawdownSeries.LastOrDefault(),
                 TradesToday = rand.Next(5, 30),
                 MarketRegime = "Sideways",
+                MarketHeatScore = 18.0,
                 ActiveSymbol = "R_100",
                 ActiveStrategy = "Momentum",
                 ActiveContractId = "-",
@@ -468,6 +507,7 @@ namespace DerivSmartBotDesktop.Services
                 CooldownSeconds = 12,
                 StakeModel = "Fixed",
                 RelaxGatesEnabled = true,
+                LastSkipReason = "Waiting for ticks",
                 EquitySeries = _equitySeries.ToList(),
                 DrawdownSeries = _drawdownSeries.ToList(),
                 ConnectionStatus = "Disconnected",
@@ -569,7 +609,9 @@ namespace DerivSmartBotDesktop.Services
                     Regime = "Trending",
                     WinRate = 61.2,
                     LastSignal = "Active",
-                    Volatility = 0.38
+                    Volatility = 0.38,
+                    Trades = 64,
+                    NetPL = 32.6
                 },
                 new SymbolTileViewModel
                 {
@@ -578,7 +620,9 @@ namespace DerivSmartBotDesktop.Services
                     Regime = "Sideways",
                     WinRate = 53.7,
                     LastSignal = "Active",
-                    Volatility = 0.22
+                    Volatility = 0.22,
+                    Trades = 48,
+                    NetPL = -12.4
                 },
                 new SymbolTileViewModel
                 {
@@ -587,7 +631,9 @@ namespace DerivSmartBotDesktop.Services
                     Regime = "Choppy",
                     WinRate = 47.5,
                     LastSignal = "Watch",
-                    Volatility = 0.18
+                    Volatility = 0.18,
+                    Trades = 30,
+                    NetPL = -5.2
                 }
             };
         }

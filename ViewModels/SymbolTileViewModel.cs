@@ -8,6 +8,8 @@ namespace DerivSmartBotDesktop.ViewModels
         private double _winRate;
         private string _regime = string.Empty;
         private double _volatility;
+        private int _trades;
+        private double _netPl;
 
         public string Symbol
         {
@@ -43,6 +45,18 @@ namespace DerivSmartBotDesktop.ViewModels
         {
             get => _volatility;
             set { _volatility = value; OnPropertyChanged(); }
+        }
+
+        public int Trades
+        {
+            get => _trades;
+            set { _trades = value; OnPropertyChanged(); }
+        }
+
+        public double NetPL
+        {
+            get => _netPl;
+            set { _netPl = value; OnPropertyChanged(); }
         }
     }
 }

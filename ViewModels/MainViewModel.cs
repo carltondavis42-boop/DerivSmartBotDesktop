@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows.Media;
 using System.Windows.Threading;
+using DerivSmartBotDesktop.Core;
 using DerivSmartBotDesktop.Services;
 using OxyPlot;
 using OxyPlot.Axes;
@@ -36,11 +37,19 @@ namespace DerivSmartBotDesktop.ViewModels
         private string _activeStatus = string.Empty;
         private string _riskState = string.Empty;
         private string _marketRegime = string.Empty;
+        private double _marketHeatScore;
         private double _dailyLossLimit;
         private int _maxConsecutiveLosses;
         private int _cooldownSeconds;
         private string _stakeModel = string.Empty;
         private bool _relaxGatesEnabled;
+        private string _lastSkipReason = string.Empty;
+        private bool _autoStartEnabled = true;
+        private bool _autoRotateEnabled = true;
+        private bool _relaxEnvFiltersEnabled;
+        private BotProfile _selectedProfile = BotProfile.Balanced;
+        private string _watchlistText = string.Empty;
+        private bool _watchlistDirty;
 
         public MainViewModel(BotRuntimeService runtimeService, ThemeService themeService, ToastService toastService, ExportService exportService)
         {
@@ -65,6 +74,7 @@ namespace DerivSmartBotDesktop.ViewModels
             PinSymbolCommand = new RelayCommand<SymbolTileViewModel>(PinSymbol);
             EmergencyStopCommand = new RelayCommand(EmergencyStop);
             OpenLogsWindowCommand = new RelayCommand(() => RequestOpenLogs?.Invoke());
+            ApplyWatchlistCommand = new RelayCommand(ApplyWatchlist);
 
             EquityPlotModel = CreatePlotModel(OxyColor.Parse("#4C8DFF"), out _equitySeries);
             DrawdownPlotModel = CreatePlotModel(OxyColor.Parse("#FF6477"), out _drawdownSeries);
@@ -102,6 +112,7 @@ namespace DerivSmartBotDesktop.ViewModels
         public RelayCommand<SymbolTileViewModel> PinSymbolCommand { get; }
         public RelayCommand EmergencyStopCommand { get; }
         public RelayCommand OpenLogsWindowCommand { get; }
+        public RelayCommand ApplyWatchlistCommand { get; }
 
         public bool IsConnected
         {
@@ -199,6 +210,12 @@ namespace DerivSmartBotDesktop.ViewModels
             set { _marketRegime = value; OnPropertyChanged(); }
         }
 
+        public double MarketHeatScore
+        {
+            get => _marketHeatScore;
+            set { _marketHeatScore = value; OnPropertyChanged(); }
+        }
+
         public double DailyLossLimit
         {
             get => _dailyLossLimit;
@@ -227,6 +244,69 @@ namespace DerivSmartBotDesktop.ViewModels
         {
             get => _relaxGatesEnabled;
             set { _relaxGatesEnabled = value; OnPropertyChanged(); }
+        }
+
+        public string LastSkipReason
+        {
+            get => _lastSkipReason;
+            set { _lastSkipReason = value; OnPropertyChanged(); }
+        }
+
+        public bool AutoStartEnabled
+        {
+            get => _autoStartEnabled;
+            set
+            {
+                _autoStartEnabled = value;
+                OnPropertyChanged();
+                _runtimeService.SetAutoStart(value);
+            }
+        }
+
+        public bool AutoRotateEnabled
+        {
+            get => _autoRotateEnabled;
+            set
+            {
+                _autoRotateEnabled = value;
+                OnPropertyChanged();
+                _runtimeService.SetAutoRotation(value);
+            }
+        }
+
+        public bool RelaxEnvFiltersEnabled
+        {
+            get => _relaxEnvFiltersEnabled;
+            set
+            {
+                _relaxEnvFiltersEnabled = value;
+                OnPropertyChanged();
+                _runtimeService.SetRelaxEnvironment(value);
+            }
+        }
+
+        public BotProfile[] ProfileOptions => new[] { BotProfile.Conservative, BotProfile.Balanced, BotProfile.Aggressive };
+
+        public BotProfile SelectedProfile
+        {
+            get => _selectedProfile;
+            set
+            {
+                _selectedProfile = value;
+                OnPropertyChanged();
+                _runtimeService.ApplyProfile(value);
+            }
+        }
+
+        public string WatchlistText
+        {
+            get => _watchlistText;
+            set
+            {
+                _watchlistText = value;
+                _watchlistDirty = true;
+                OnPropertyChanged();
+            }
         }
 
         public ObservableCollection<ToastItem> Toasts => _toastService.Toasts;
@@ -298,11 +378,13 @@ namespace DerivSmartBotDesktop.ViewModels
 
             RiskState = snapshot.RiskState;
             MarketRegime = snapshot.MarketRegime;
+            MarketHeatScore = snapshot.MarketHeatScore;
             DailyLossLimit = snapshot.DailyLossLimit;
             MaxConsecutiveLosses = snapshot.MaxConsecutiveLosses;
             CooldownSeconds = snapshot.CooldownSeconds;
             StakeModel = snapshot.StakeModel;
             RelaxGatesEnabled = snapshot.RelaxGatesEnabled;
+            LastSkipReason = snapshot.LastSkipReason;
 
             Diagnostics.ConnectionStatus = snapshot.ConnectionStatus;
             Diagnostics.MessageRate = snapshot.MessageRate;
@@ -322,6 +404,8 @@ namespace DerivSmartBotDesktop.ViewModels
             CollectionSyncService.Sync(Logs.Logs, snapshot.Logs, l => l.Id, CopyLog);
             CollectionSyncService.Sync(Alerts.Alerts, snapshot.Alerts, a => a.Id, CopyAlert);
             CollectionSyncService.Sync(WatchlistSymbols, snapshot.Watchlist, s => s, (t, s) => { });
+            if (!_watchlistDirty)
+                SetWatchlistTextFromSnapshot(snapshot.Watchlist);
         }
 
         private void SyncKpis(BotSnapshot snapshot)
@@ -331,9 +415,8 @@ namespace DerivSmartBotDesktop.ViewModels
                 new KpiItemViewModel { Title = "Balance", Value = $"${snapshot.Balance:0.00}", SubValue = "Equity", AccentBrush = (Brush)App.Current.FindResource("AccentBrush") },
                 new KpiItemViewModel { Title = "Today P/L", Value = $"${snapshot.TodaysPL:0.00}", SubValue = "Session", AccentBrush = (Brush)App.Current.FindResource("PositiveBrush") },
                 new KpiItemViewModel { Title = "Win Rate", Value = $"{snapshot.WinRateToday:0.0}%", SubValue = $"Last 200: {snapshot.WinRate200:0.0}%", AccentBrush = (Brush)App.Current.FindResource("InfoBrush") },
-                new KpiItemViewModel { Title = "Drawdown", Value = $"{snapshot.Drawdown:0.0}%", SubValue = "Session", AccentBrush = (Brush)App.Current.FindResource("WarningBrush") },
-                new KpiItemViewModel { Title = "Trades/day", Value = snapshot.TradesToday.ToString(), SubValue = "Today", AccentBrush = (Brush)App.Current.FindResource("AccentBrush") },
-                new KpiItemViewModel { Title = "Market Regime", Value = snapshot.MarketRegime, SubValue = "Live", AccentBrush = (Brush)App.Current.FindResource("AccentBrush") }
+                new KpiItemViewModel { Title = "Trades (session)", Value = snapshot.TradesToday.ToString(), SubValue = "Session", AccentBrush = (Brush)App.Current.FindResource("AccentBrush") },
+                new KpiItemViewModel { Title = "Market Heat", Value = $"{snapshot.MarketHeatScore:0.0}", SubValue = snapshot.MarketRegime, AccentBrush = (Brush)App.Current.FindResource("WarningBrush") }
             };
 
             CollectionSyncService.Sync(Kpis, items, k => k.Title, CopyKpi);
@@ -366,6 +449,8 @@ namespace DerivSmartBotDesktop.ViewModels
             target.WinRate = source.WinRate;
             target.LastSignal = source.LastSignal;
             target.Volatility = source.Volatility;
+            target.Trades = source.Trades;
+            target.NetPL = source.NetPL;
         }
 
         private static void CopyLog(LogItemViewModel target, LogItemViewModel source)
@@ -389,6 +474,29 @@ namespace DerivSmartBotDesktop.ViewModels
             target.Value = source.Value;
             target.SubValue = source.SubValue;
             target.AccentBrush = source.AccentBrush;
+        }
+
+        private void ApplyWatchlist()
+        {
+            var raw = WatchlistText ?? string.Empty;
+            var symbols = raw
+                .Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .Where(s => s.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (symbols.Count == 0)
+                return;
+
+            _runtimeService.ApplyWatchlist(symbols);
+            _watchlistDirty = false;
+        }
+
+        private void SetWatchlistTextFromSnapshot(System.Collections.Generic.IEnumerable<string> watchlist)
+        {
+            _watchlistText = string.Join(", ", watchlist);
+            OnPropertyChanged(nameof(WatchlistText));
         }
 
         private static PlotModel CreatePlotModel(OxyColor lineColor, out LineSeries series)
