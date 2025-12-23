@@ -257,7 +257,11 @@ namespace DerivSmartBotDesktop.Services
 
             snapshot.Strategies = BuildStrategyRows(trades);
             snapshot.Symbols = BuildSymbolTiles();
-            snapshot.Watchlist = _controller?.SymbolsToWatch?.ToList() ?? new List<string>();
+
+            var watchlist = _controller?.SymbolsToWatch?.ToList() ?? new List<string>();
+            if (watchlist.Count == 0 && !string.IsNullOrWhiteSpace(_settings?.Symbol))
+                watchlist.Add(_settings.Symbol);
+            snapshot.Watchlist = watchlist;
 
             lock (_lock)
             {

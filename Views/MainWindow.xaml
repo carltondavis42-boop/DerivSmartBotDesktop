@@ -9,7 +9,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="64"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="300"/>
+            <RowDefinition Height="360"/>
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" Background="{DynamicResource TopBarBackgroundBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
@@ -32,10 +32,10 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Content="Start" Style="{StaticResource PrimaryButton}" Command="{Binding StartCommand}" Margin="0,0,8,0"/>
-                    <Button Content="Stop" Style="{StaticResource GhostButton}" Command="{Binding StopCommand}" Margin="0,0,8,0"/>
-                    <Button Content="Settings" Command="{Binding OpenSettingsCommand}" Margin="0,0,8,0"/>
-                    <Button Content="Emergency Stop" Style="{StaticResource DangerButton}" Command="{Binding EmergencyStopCommand}"/>
+                    <Button Content="Start" Width="120" Style="{StaticResource PrimaryButton}" Command="{Binding StartCommand}" Margin="0,0,8,0"/>
+                    <Button Content="Stop" Width="120" Style="{StaticResource GhostButton}" Command="{Binding StopCommand}" Margin="0,0,8,0"/>
+                    <Button Content="Settings" Width="120" Command="{Binding OpenSettingsCommand}" Margin="0,0,8,0"/>
+                    <Button Content="Emergency Stop" Width="120" Style="{StaticResource DangerButton}" Command="{Binding EmergencyStopCommand}"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -120,10 +120,16 @@
                 </Border>
             </Grid>
 
-            <StackPanel Grid.Column="2" Margin="0,0,0,0">
-                <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
-                    <StackPanel>
-                        <TextBlock Text="Strategy Performance" FontWeight="SemiBold"/>
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="Strategy Performance" FontWeight="SemiBold"/>
                         <DataGrid ItemsSource="{Binding StrategyRows}"
                                   AutoGenerateColumns="False"
                                   CanUserAddRows="False"
@@ -132,7 +138,8 @@
                                   VirtualizingPanel.VirtualizationMode="Recycling"
                                   GridLinesVisibility="None"
                                   HeadersVisibility="Column"
-                                  Margin="0,8,0,0">
+                                  Margin="0,8,0,0"
+                                  MinHeight="220">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Strategy" Binding="{Binding Strategy}" Width="*"/>
                                 <DataGridTextColumn Header="Win50" Binding="{Binding WinRate50, StringFormat={}{0:0.0}%}" Width="70"/>
@@ -143,10 +150,10 @@
                                 <DataGridTextColumn Header="Duration" Binding="{Binding RecommendedDuration}" Width="80"/>
                             </DataGrid.Columns>
                         </DataGrid>
-                    </StackPanel>
+                    </DockPanel>
                 </Border>
 
-                <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
+                <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
                     <StackPanel>
                         <TextBlock Text="Symbol Heat" FontWeight="SemiBold"/>
                         <ItemsControl ItemsSource="{Binding SymbolTiles}">
@@ -157,7 +164,7 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Button Background="Transparent" BorderThickness="0"
+                                    <Button Background="Transparent" BorderThickness="0" MinWidth="0"
                                             Command="{Binding DataContext.PinSymbolCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                             CommandParameter="{Binding}">
                                         <controls:SymbolTile Symbol="{Binding Symbol}" Heat="{Binding Heat}" Regime="{Binding Regime}"
@@ -170,7 +177,7 @@
                     </StackPanel>
                 </Border>
 
-                <Border Style="{StaticResource CardBorderStyle}">
+                <Border Grid.Row="2" Style="{StaticResource CardBorderStyle}">
                     <StackPanel>
                         <TextBlock Text="Risk Panel" FontWeight="SemiBold"/>
                         <TextBlock Text="{Binding RiskState, StringFormat=State: {0}}" Foreground="{DynamicResource TextSecondaryBrush}"/>
@@ -184,7 +191,7 @@
                                   Margin="0,6,0,0"/>
                     </StackPanel>
                 </Border>
-            </StackPanel>
+            </Grid>
         </Grid>
 
         <Border Grid.Row="2" Background="{DynamicResource PanelBackgroundBrush}" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="12" Margin="16,0,16,16" Padding="12">
@@ -245,11 +252,21 @@
                                  ScrollViewer.VerticalScrollBarVisibility="Auto">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="6">
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding Time, StringFormat={}{0:HH:mm:ss}}" Foreground="{DynamicResource TextMutedBrush}"/>
-                                            <TextBlock Text="{Binding Message}" Foreground="{Binding SeverityBrush}"/>
-                                        </StackPanel>
+                                    <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="90"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding Time, StringFormat={}{0:HH:mm:ss}}"
+                                                       Foreground="{DynamicResource TextMutedBrush}"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding Message}"
+                                                       Foreground="{Binding SeverityBrush}"
+                                                       TextWrapping="Wrap"
+                                                       Margin="12,0,0,0"/>
+                                        </Grid>
                                     </Border>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
