@@ -25,11 +25,12 @@
 
     <Style TargetType="Button">
         <Setter Property="FontSize" Value="12"/>
-        <Setter Property="Padding" Value="12,6"/>
-        <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}"/>
+        <Setter Property="Padding" Value="14,8"/>
+        <Setter Property="MinHeight" Value="32"/>
+        <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="BorderThickness" Value="1.2"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">
             <Setter.Value>
@@ -43,10 +44,13 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Root" Property="Opacity" Value="0.9"/>
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Root" Property="Opacity" Value="0.8"/>
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource AccentBrush}"/>
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                            <Setter Property="Foreground" Value="White"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Root" Property="Opacity" Value="0.5"/>

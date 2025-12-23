@@ -12,7 +12,7 @@ namespace DerivSmartBotDesktop.Services
 
     public class ThemeService
     {
-        public ThemeKind CurrentTheme { get; private set; } = ThemeKind.Dark;
+        public ThemeKind CurrentTheme { get; private set; } = ThemeKind.Light;
 
         public void ApplyTheme(ThemeKind theme)
         {
