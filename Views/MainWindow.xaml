@@ -90,31 +90,11 @@
 
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="220"/>
                 <ColumnDefinition Width="2*"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}">
-                <StackPanel>
-                    <TextBlock Text="Watchlist" FontWeight="SemiBold"/>
-                    <ListBox ItemsSource="{Binding WatchlistSymbols}"
-                             VirtualizingPanel.IsVirtualizing="True"
-                             VirtualizingPanel.VirtualizationMode="Recycling"
-                             ScrollViewer.VerticalScrollBarVisibility="Auto"
-                             Margin="0,8,0,0">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Border Background="{DynamicResource PanelBackgroundBrush}" CornerRadius="6" Padding="8" Margin="0,0,0,6">
-                                    <TextBlock Text="{Binding}"/>
-                                </Border>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                </StackPanel>
-            </Border>
-
-            <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}" Margin="12,0,12,0">
+            <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,12,0">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
                         <TextBlock Text="Strategy performance" FontWeight="SemiBold"/>
@@ -139,7 +119,7 @@
                 </DockPanel>
             </Border>
 
-            <StackPanel Grid.Column="2">
+            <StackPanel Grid.Column="1">
                 <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
                     <StackPanel>
                         <TextBlock Text="Market conditions" FontWeight="SemiBold"/>
