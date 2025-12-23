@@ -321,16 +321,19 @@ namespace DerivSmartBotDesktop.Services
             snapshot.DrawdownSeries = _drawdownSeries.ToList();
             snapshot.Drawdown = _drawdownSeries.LastOrDefault();
 
-            snapshot.Trades = trades.Select(t => new TradeRowViewModel
-            {
-                Id = $"{t.Time:O}-{t.Symbol}-{t.StrategyName}",
-                Time = t.Time,
-                Symbol = t.Symbol,
-                Strategy = t.StrategyName,
-                Direction = t.Direction,
-                Stake = t.Stake,
-                Profit = t.Profit
-            }).ToList();
+            snapshot.Trades = trades
+                .OrderByDescending(t => t.Time)
+                .Take(500)
+                .Select(t => new TradeRowViewModel
+                {
+                    Id = $"{t.Time:O}-{t.Symbol}-{t.StrategyName}-{t.Direction}-{t.Stake:0.00}-{t.Profit:0.00}",
+                    Time = t.Time,
+                    Symbol = t.Symbol,
+                    Strategy = t.StrategyName,
+                    Direction = t.Direction,
+                    Stake = t.Stake,
+                    Profit = t.Profit
+                }).ToList();
 
             snapshot.Strategies = BuildStrategyRows(trades);
             snapshot.Symbols = BuildSymbolTiles();
@@ -550,21 +553,19 @@ namespace DerivSmartBotDesktop.Services
 
         private static List<TradeRowViewModel> BuildMockTrades()
         {
-            return new List<TradeRowViewModel>
+            var trades = new List<TradeRowViewModel>
             {
                 new TradeRowViewModel
                 {
-                    Id = "mock-1",
-                    Time = DateTime.Now.AddMinutes(-3),
-                    Symbol = "R_100",
-                    Strategy = "Momentum",
+                    Time = DateTime.Now.AddMinutes(-1),
+                    Symbol = "R_25",
+                    Strategy = "TrendBreakout",
                     Direction = "CALL",
-                    Stake = 2.5,
-                    Profit = 1.9
+                    Stake = 3.0,
+                    Profit = 2.4
                 },
                 new TradeRowViewModel
                 {
-                    Id = "mock-2",
                     Time = DateTime.Now.AddMinutes(-2),
                     Symbol = "R_50",
                     Strategy = "RangeLowVol",
@@ -574,15 +575,21 @@ namespace DerivSmartBotDesktop.Services
                 },
                 new TradeRowViewModel
                 {
-                    Id = "mock-3",
-                    Time = DateTime.Now.AddMinutes(-1),
-                    Symbol = "R_25",
-                    Strategy = "TrendBreakout",
+                    Time = DateTime.Now.AddMinutes(-3),
+                    Symbol = "R_100",
+                    Strategy = "Momentum",
                     Direction = "CALL",
-                    Stake = 3.0,
-                    Profit = 2.4
+                    Stake = 2.5,
+                    Profit = 1.9
                 }
             };
+
+            foreach (var trade in trades)
+            {
+                trade.Id = $"{trade.Time:O}-{trade.Symbol}-{trade.Strategy}-{trade.Direction}-{trade.Stake:0.00}-{trade.Profit:0.00}";
+            }
+
+            return trades;
         }
 
         private static List<StrategyRowViewModel> BuildMockStrategies()
