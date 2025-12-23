@@ -2135,7 +2135,7 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
         // NEW: optional AI/ML helpers
         private readonly IFeatureExtractor? _featureExtractor;
         private readonly ITradeDataLogger? _tradeLogger;
-        private readonly IStrategySelector? _strategySelector;
+        private IStrategySelector? _strategySelector;
 
         private readonly Dictionary<string, StrategyStats> _strategyStats = new();
         private readonly List<TradeRecord> _tradeHistory = new();
@@ -2226,7 +2226,7 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
         private readonly int _minTicksBeforeAutoStart = 80;
         private readonly double _minHeatForAutoStart = 55.0;
 
-        private readonly IMarketRegimeClassifier _regimeClassifier;
+        private IMarketRegimeClassifier _regimeClassifier;
 
         public SmartBotController(
             RiskManager riskManager,
@@ -2460,6 +2460,27 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
         {
             _autoSymbolMode = mode;
             RaiseBotEvent($"Auto symbol mode set to {mode}.");
+        }
+
+        public void UpdateStrategySelector(IStrategySelector? selector)
+        {
+            lock (_stateLock)
+            {
+                _strategySelector = selector;
+            }
+            RaiseBotEvent("[ML] Strategy selector updated.");
+        }
+
+        public void UpdateRegimeClassifier(IMarketRegimeClassifier classifier)
+        {
+            if (classifier == null)
+                return;
+
+            lock (_stateLock)
+            {
+                _regimeClassifier = classifier;
+            }
+            RaiseBotEvent("[ML] Regime classifier updated.");
         }
 
         public void SetActiveSymbol(string symbol)

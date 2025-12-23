@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,6 +40,7 @@ namespace DerivSmartBotDesktop.Services
         private bool _autoRotateEnabled = true;
         private bool _relaxEnvFilters;
         private AutoTrainingService? _autoTrainingService;
+        private DateTime _lastModelLoadUtc = DateTime.MinValue;
         private int _reconnectInProgress;
         private CancellationTokenSource? _reconnectCts;
 
@@ -68,6 +70,11 @@ namespace DerivSmartBotDesktop.Services
             var baseDir = AppDomain.CurrentDomain.BaseDirectory;
             var trainScript = System.IO.Path.Combine(baseDir, "train_models.py");
             _autoTrainingService = new AutoTrainingService(trainScript, tradesPerTrain: 200, LogAutoTrain);
+            _autoTrainingService.TrainingCompleted += updated =>
+            {
+                if (updated)
+                    TryReloadModelsIfUpdated();
+            };
 
             var profileCfg = BotProfileConfig.ForProfile(_currentProfile);
             _riskSettings = profileCfg.Risk;
@@ -112,8 +119,8 @@ namespace DerivSmartBotDesktop.Services
             IStrategySelector strategySelector;
             try
             {
-                string edgeModelPath = System.IO.Path.Combine(baseDir, "Data", "ML", "edge-linear-v1.json");
-                if (System.IO.File.Exists(edgeModelPath))
+                string edgeModelPath = Path.Combine(baseDir, "Data", "ML", "edge-linear-v1.json");
+                if (File.Exists(edgeModelPath))
                 {
                     var edgeModel = new JsonStrategyEdgeModel(edgeModelPath);
                     strategySelector = new MlStrategySelector(edgeModel, fallback: new RuleBasedStrategySelector());
@@ -131,8 +138,8 @@ namespace DerivSmartBotDesktop.Services
             IMarketRegimeClassifier regimeClassifier;
             try
             {
-                string modelPath = System.IO.Path.Combine(baseDir, "Data", "ML", "regime-linear-v1.json");
-                if (System.IO.File.Exists(modelPath))
+                string modelPath = Path.Combine(baseDir, "Data", "ML", "regime-linear-v1.json");
+                if (File.Exists(modelPath))
                 {
                     var mlModel = new JsonRegimeModel(modelPath);
                     regimeClassifier = new MLMarketRegimeClassifier(mlModel, fallback: new AiMarketRegimeClassifier(), minConfidence: 0.55);
@@ -156,6 +163,8 @@ namespace DerivSmartBotDesktop.Services
                 featureExtractor,
                 tradeLogger,
                 strategySelector);
+
+            _lastModelLoadUtc = GetLatestModelWriteUtc();
 
             controller.ForwardTestEnabled = _settings.ForwardTestEnabled;
             controller.RelaxEnvironmentForTesting = _settings.RelaxEnvironmentForTesting || _relaxEnvFilters;
@@ -643,6 +652,69 @@ namespace DerivSmartBotDesktop.Services
                 .Where(s => s.Length > 0)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
+        }
+
+        private DateTime GetLatestModelWriteUtc()
+        {
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            var edgePath = Path.Combine(baseDir, "Data", "ML", "edge-linear-v1.json");
+            var regimePath = Path.Combine(baseDir, "Data", "ML", "regime-linear-v1.json");
+
+            var latest = DateTime.MinValue;
+            if (File.Exists(edgePath))
+                latest = File.GetLastWriteTimeUtc(edgePath);
+            if (File.Exists(regimePath))
+                latest = new[] { latest, File.GetLastWriteTimeUtc(regimePath) }.Max();
+
+            return latest;
+        }
+
+        private void TryReloadModelsIfUpdated()
+        {
+            var latest = GetLatestModelWriteUtc();
+            if (latest <= _lastModelLoadUtc)
+                return;
+
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            var edgePath = Path.Combine(baseDir, "Data", "ML", "edge-linear-v1.json");
+            var regimePath = Path.Combine(baseDir, "Data", "ML", "regime-linear-v1.json");
+
+            IStrategySelector? selector = null;
+            IMarketRegimeClassifier? classifier = null;
+
+            try
+            {
+                if (File.Exists(edgePath))
+                {
+                    var edgeModel = new JsonStrategyEdgeModel(edgePath);
+                    selector = new MlStrategySelector(edgeModel, fallback: new RuleBasedStrategySelector());
+                }
+            }
+            catch (Exception ex)
+            {
+                OnBotEvent($"[AutoTrain] Edge model reload failed: {ex.Message}");
+            }
+
+            try
+            {
+                if (File.Exists(regimePath))
+                {
+                    var regimeModel = new JsonRegimeModel(regimePath);
+                    classifier = new MLMarketRegimeClassifier(regimeModel, fallback: new AiMarketRegimeClassifier(), minConfidence: 0.55);
+                }
+            }
+            catch (Exception ex)
+            {
+                OnBotEvent($"[AutoTrain] Regime model reload failed: {ex.Message}");
+            }
+
+            if (selector != null)
+                _controller?.UpdateStrategySelector(selector);
+            if (classifier != null)
+                _controller?.UpdateRegimeClassifier(classifier);
+
+            _lastModelLoadUtc = latest;
+            OnBotEvent("[AutoTrain] Models reloaded.");
         }
 
         private static List<TradeRowViewModel> BuildMockTrades()

@@ -14,6 +14,8 @@ namespace DerivSmartBotDesktop.Services
         private int _lastTrainedTradeCount;
         private int _isRunning;
 
+        public event Action<bool>? TrainingCompleted;
+
         public AutoTrainingService(string scriptPath, int tradesPerTrain, Action<string> log)
         {
             _scriptPath = scriptPath;
@@ -69,14 +71,19 @@ namespace DerivSmartBotDesktop.Services
                 string stderr = await process.StandardError.ReadToEndAsync().ConfigureAwait(false);
                 await process.WaitForExitAsync().ConfigureAwait(false);
 
+                var updated = !stdout.Contains("No improvement", StringComparison.OrdinalIgnoreCase);
+
                 if (!string.IsNullOrWhiteSpace(stdout))
                     _log("[AutoTrain] " + stdout.Trim());
                 if (!string.IsNullOrWhiteSpace(stderr))
                     _log("[AutoTrain][ERR] " + stderr.Trim());
+
+                TrainingCompleted?.Invoke(updated);
             }
             catch (Exception ex)
             {
                 _log($"[AutoTrain] Failed: {ex.Message}");
+                TrainingCompleted?.Invoke(false);
             }
             finally
             {
