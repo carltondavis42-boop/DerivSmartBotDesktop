@@ -13,4 +13,10 @@
     <PackageReference Include="OxyPlot.Wpf" Version="2.2.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="train_models.py">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

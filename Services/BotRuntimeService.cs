@@ -38,6 +38,7 @@ namespace DerivSmartBotDesktop.Services
         private bool _autoStartEnabled = true;
         private bool _autoRotateEnabled = true;
         private bool _relaxEnvFilters;
+        private AutoTrainingService? _autoTrainingService;
 
         public event Action<BotSnapshot>? SnapshotAvailable;
 
@@ -60,6 +61,10 @@ namespace DerivSmartBotDesktop.Services
             await client.WaitUntilAuthorizedAsync();
             await client.RequestBalanceAsync();
             _ = SubscribeSymbolsAsync(new[] { _settings.Symbol });
+
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            var trainScript = System.IO.Path.Combine(baseDir, "train_models.py");
+            _autoTrainingService = new AutoTrainingService(trainScript, tradesPerTrain: 200, LogAutoTrain);
 
             var profileCfg = BotProfileConfig.ForProfile(_currentProfile);
             _riskSettings = profileCfg.Risk;
@@ -244,6 +249,24 @@ namespace DerivSmartBotDesktop.Services
             }
         }
 
+        private void LogAutoTrain(string message)
+        {
+            lock (_lock)
+            {
+                _logs.Add(new LogItemViewModel
+                {
+                    Id = Guid.NewGuid().ToString("N"),
+                    Time = DateTime.Now,
+                    Message = message,
+                    Severity = LogSeverity.Info,
+                    SeverityBrush = Brushes.LightGray
+                });
+
+                if (_logs.Count > 500)
+                    _logs.RemoveRange(0, _logs.Count - 500);
+            }
+        }
+
         private Task SubscribeSymbolsAsync(IEnumerable<string> symbols)
         {
             var client = _client;
@@ -307,6 +330,7 @@ namespace DerivSmartBotDesktop.Services
             };
 
             var trades = _controller?.TradeHistory ?? new List<TradeRecord>();
+            _autoTrainingService?.TryQueueTraining(trades.Count);
             snapshot.TradesToday = trades.Count;
 
             var wins = trades.Count(t => t.Profit >= 0);

@@ -4,7 +4,7 @@ train_models.py
 
 Offline training script for DerivSmartBotDesktop.
 
-- Reads trade logs from Data/Logs/trades-*.csv
+- Reads trade logs from Data/Trades/trades-*.csv
 - Infers numeric feature columns automatically
 - Trains:
     * Multiclass logistic regression for market regime
@@ -14,36 +14,40 @@ Offline training script for DerivSmartBotDesktop.
     * Data/ML/regime-linear-v1.json
     * Data/ML/edge-linear-v1.json
 
-These JSONs are consumed by:
-    JsonRegimeModel  + MLMarketRegimeClassifier
-    JsonStrategyEdgeModel + MlStrategySelector
-
-Adjust column / path names if your CSV logger differs.
+Only overwrites models if validation metrics improve. Keeps a backup of the
+last good models in Data/ML/archive/.
 """
 
+import argparse
 import json
 import os
 import glob
-from typing import List, Dict
+from datetime import datetime
+from typing import List, Dict, Tuple, Optional
 
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
 
 
 # ---------- CONFIG ----------
 
 # Relative paths from this script
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-LOG_DIR = os.path.join(BASE_DIR, "Data", "Logs")
+LOG_DIR = os.path.join(BASE_DIR, "Data", "Trades")
 ML_DIR = os.path.join(BASE_DIR, "Data", "ML")
+ARCHIVE_DIR = os.path.join(ML_DIR, "archive")
 
 # Filenames for saved models
 REGIME_MODEL_PATH = os.path.join(ML_DIR, "regime-linear-v1.json")
 EDGE_MODEL_PATH = os.path.join(ML_DIR, "edge-linear-v1.json")
+METRICS_PATH = os.path.join(ML_DIR, "metrics.json")
 
 # Minimum samples to train per-strategy model
 MIN_SAMPLES_PER_STRATEGY = 50
+MIN_TOTAL_SAMPLES = 200
 
 # Name of key columns as written by CsvTradeDataLogger
 # If your logger uses different names, adjust these.
@@ -87,7 +91,7 @@ def load_all_logs(log_dir: str) -> pd.DataFrame:
     if not files:
         raise FileNotFoundError(
             f"No trade logs found matching {pattern}. "
-            f"Let the bot run to generate Data/Logs/trades-*.csv first."
+            f"Let the bot run to generate Data/Trades/trades-*.csv first."
         )
 
     dfs = []
@@ -265,9 +269,101 @@ def train_edge_models(per_strategy: Dict[str, tuple]) -> Dict:
     return model_dict
 
 
+def evaluate_regime_model(X: np.ndarray, y: np.ndarray) -> float:
+    if X.shape[0] < MIN_TOTAL_SAMPLES:
+        raise RuntimeError(f"Not enough samples for regime model ({X.shape[0]} < {MIN_TOTAL_SAMPLES}).")
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+
+    clf = LogisticRegression(
+        multi_class="multinomial",
+        solver="lbfgs",
+        max_iter=1000
+    )
+    clf.fit(X_train, y_train)
+    preds = clf.predict(X_test)
+    return float(accuracy_score(y_test, preds))
+
+
+def evaluate_edge_models(per_strategy: Dict[str, tuple]) -> Optional[float]:
+    if not per_strategy:
+        return None
+
+    scores = []
+    weights = []
+
+    for _, (X, y) in per_strategy.items():
+        if len(y) < MIN_SAMPLES_PER_STRATEGY:
+            continue
+
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42, stratify=y
+        )
+        clf = LogisticRegression(solver="lbfgs", max_iter=1000)
+        clf.fit(X_train, y_train)
+        preds = clf.predict(X_test)
+        acc = float(accuracy_score(y_test, preds))
+        scores.append(acc)
+        weights.append(len(y))
+
+    if not scores:
+        return None
+
+    weighted = sum(s * w for s, w in zip(scores, weights)) / sum(weights)
+    return float(weighted)
+
+
+def load_metrics(path: str) -> Optional[Dict]:
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def should_update_models(new_score: float, old_metrics: Optional[Dict], force: bool) -> bool:
+    if force:
+        return True
+    if not old_metrics:
+        return True
+    old_score = old_metrics.get("composite_score", 0.0)
+    return new_score > old_score
+
+
+def archive_existing_models():
+    os.makedirs(ARCHIVE_DIR, exist_ok=True)
+    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    for path in [REGIME_MODEL_PATH, EDGE_MODEL_PATH, METRICS_PATH]:
+        if os.path.exists(path):
+            name = os.path.basename(path)
+            os.replace(path, os.path.join(ARCHIVE_DIR, f"{ts}_{name}"))
+
+
 # ---------- MAIN ----------
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--log-dir", default=LOG_DIR)
+    parser.add_argument("--ml-dir", default=ML_DIR)
+    parser.add_argument("--force", action="store_true")
+    parser.add_argument("--min-total", type=int, default=MIN_TOTAL_SAMPLES)
+    parser.add_argument("--min-per-strategy", type=int, default=MIN_SAMPLES_PER_STRATEGY)
+    args = parser.parse_args()
+
+    global LOG_DIR, ML_DIR, REGIME_MODEL_PATH, EDGE_MODEL_PATH, METRICS_PATH, MIN_TOTAL_SAMPLES, MIN_SAMPLES_PER_STRATEGY
+
+    LOG_DIR = args.log_dir
+    ML_DIR = args.ml_dir
+    REGIME_MODEL_PATH = os.path.join(ML_DIR, "regime-linear-v1.json")
+    EDGE_MODEL_PATH = os.path.join(ML_DIR, "edge-linear-v1.json")
+    METRICS_PATH = os.path.join(ML_DIR, "metrics.json")
+    MIN_TOTAL_SAMPLES = args.min_total
+    MIN_SAMPLES_PER_STRATEGY = args.min_per_strategy
+
     os.makedirs(ML_DIR, exist_ok=True)
 
     # 1) Load data
@@ -277,28 +373,45 @@ def main():
     feature_cols = infer_feature_columns(df)
 
     # 3) Train regime model
-    try:
-        X_reg, y_reg = prepare_regime_data(df, feature_cols)
-        regime_json = train_regime_model(X_reg, y_reg)
-        regime_json["feature_names"] = feature_cols
+    X_reg, y_reg = prepare_regime_data(df, feature_cols)
+    per_strategy = prepare_edge_data(df, feature_cols)
 
-        with open(REGIME_MODEL_PATH, "w", encoding="utf-8") as f:
-            json.dump(regime_json, f, indent=2)
-        print(f"Saved regime model to {REGIME_MODEL_PATH}")
-    except Exception as e:
-        print(f"ERROR training regime model: {e}")
+    regime_acc = evaluate_regime_model(X_reg, y_reg)
+    edge_acc = evaluate_edge_models(per_strategy)
 
-    # 4) Train edge models
-    try:
-        per_strategy = prepare_edge_data(df, feature_cols)
-        edge_json = train_edge_models(per_strategy)
-        edge_json["feature_names"] = feature_cols
+    composite = regime_acc if edge_acc is None else (0.6 * regime_acc + 0.4 * edge_acc)
 
-        with open(EDGE_MODEL_PATH, "w", encoding="utf-8") as f:
-            json.dump(edge_json, f, indent=2)
-        print(f"Saved edge model to {EDGE_MODEL_PATH}")
-    except Exception as e:
-        print(f"ERROR training edge models: {e}")
+    metrics = {
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "regime_accuracy": regime_acc,
+        "edge_accuracy": edge_acc,
+        "composite_score": composite,
+        "samples": int(len(df)),
+    }
+
+    existing = load_metrics(METRICS_PATH)
+    if not should_update_models(composite, existing, args.force):
+        print(f"No improvement. New={composite:.4f}, Old={existing.get('composite_score', 0.0):.4f}")
+        return
+
+    regime_json = train_regime_model(X_reg, y_reg)
+    regime_json["feature_names"] = feature_cols
+
+    edge_json = train_edge_models(per_strategy)
+    edge_json["feature_names"] = feature_cols
+
+    archive_existing_models()
+
+    with open(REGIME_MODEL_PATH, "w", encoding="utf-8") as f:
+        json.dump(regime_json, f, indent=2)
+    with open(EDGE_MODEL_PATH, "w", encoding="utf-8") as f:
+        json.dump(edge_json, f, indent=2)
+    with open(METRICS_PATH, "w", encoding="utf-8") as f:
+        json.dump(metrics, f, indent=2)
+
+    print(f"Saved regime model to {REGIME_MODEL_PATH}")
+    print(f"Saved edge model to {EDGE_MODEL_PATH}")
+    print(f"Saved metrics to {METRICS_PATH}")
 
 
 if __name__ == "__main__":
