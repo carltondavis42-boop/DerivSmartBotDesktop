@@ -109,7 +109,6 @@ namespace DerivSmartBotDesktop.Services
             IStrategySelector strategySelector;
             try
             {
-                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
                 string edgeModelPath = System.IO.Path.Combine(baseDir, "Data", "ML", "edge-linear-v1.json");
                 if (System.IO.File.Exists(edgeModelPath))
                 {
@@ -129,7 +128,6 @@ namespace DerivSmartBotDesktop.Services
             IMarketRegimeClassifier regimeClassifier;
             try
             {
-                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
                 string modelPath = System.IO.Path.Combine(baseDir, "Data", "ML", "regime-linear-v1.json");
                 if (System.IO.File.Exists(modelPath))
                 {
