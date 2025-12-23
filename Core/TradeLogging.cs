@@ -35,7 +35,7 @@ namespace DerivSmartBotDesktop.Core
         public CsvTradeDataLogger(string? directory = null)
         {
             string baseDir = string.IsNullOrWhiteSpace(directory)
-                ? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Logs")
+                ? @"C:\Users\Ian\DerivSmartBotDesktop\Data\Trades"
                 : directory;
 
             _directory = baseDir;
