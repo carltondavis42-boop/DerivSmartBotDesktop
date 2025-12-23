@@ -20,6 +20,7 @@ namespace DerivSmartBotDesktop.ViewModels
             Trades = new ObservableCollection<TradeRowViewModel>();
             TradesView = CollectionViewSource.GetDefaultView(Trades);
             TradesView.Filter = FilterTrades;
+            TradesView.SortDescriptions.Add(new SortDescription(nameof(TradeRowViewModel.Time), ListSortDirection.Descending));
             ApplyFiltersCommand = new RelayCommand(() => TradesView.Refresh());
             ExportCommand = new RelayCommand(ExportTrades);
         }

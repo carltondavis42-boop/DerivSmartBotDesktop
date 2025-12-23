@@ -385,6 +385,7 @@ namespace DerivSmartBotDesktop.ViewModels
             DrawdownPlotModel.InvalidatePlot(true);
 
             CollectionSyncService.Sync(Trades.Trades, snapshot.Trades, t => t.Id, CopyTrade);
+            Trades.TradesView.Refresh();
             CollectionSyncService.Sync(StrategyRows, snapshot.Strategies, s => s.Strategy, CopyStrategy);
             CollectionSyncService.Sync(SymbolTiles, snapshot.Symbols, s => s.Symbol, CopySymbol);
             CollectionSyncService.Sync(Logs.Logs, snapshot.Logs, l => l.Id, CopyLog);
