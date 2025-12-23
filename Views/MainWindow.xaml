@@ -60,6 +60,7 @@
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Content="Logs" Width="110" Command="{Binding OpenLogsWindowCommand}" Margin="0,0,8,0"/>
+                    <Button Content="Clear Pause" Width="120" Command="{Binding ClearAutoPauseCommand}" Margin="0,0,8,0"/>
                     <Button Content="Start Bot" Width="120" Style="{StaticResource PrimaryButton}" Command="{Binding StartCommand}" Margin="0,0,8,0"/>
                     <Button Content="Stop Bot" Width="120" Style="{StaticResource GhostButton}" Command="{Binding StopCommand}" Margin="0,0,8,0"/>
                     <Button Content="Settings" Width="120" Command="{Binding OpenSettingsCommand}"/>

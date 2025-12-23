@@ -72,6 +72,7 @@ namespace DerivSmartBotDesktop.ViewModels
             PinSymbolCommand = new RelayCommand<SymbolTileViewModel>(PinSymbol);
             EmergencyStopCommand = new RelayCommand(EmergencyStop);
             OpenLogsWindowCommand = new RelayCommand(() => RequestOpenLogs?.Invoke());
+            ClearAutoPauseCommand = new RelayCommand(ClearAutoPause);
 
             EquityPlotModel = CreatePlotModel(OxyColor.Parse("#4C8DFF"), out _equitySeries);
             DrawdownPlotModel = CreatePlotModel(OxyColor.Parse("#FF6477"), out _drawdownSeries);
@@ -109,6 +110,7 @@ namespace DerivSmartBotDesktop.ViewModels
         public RelayCommand<SymbolTileViewModel> PinSymbolCommand { get; }
         public RelayCommand EmergencyStopCommand { get; }
         public RelayCommand OpenLogsWindowCommand { get; }
+        public RelayCommand ClearAutoPauseCommand { get; }
 
         public bool IsConnected
         {
@@ -319,6 +321,12 @@ namespace DerivSmartBotDesktop.ViewModels
         private void StopBot()
         {
             _runtimeService.Stop();
+        }
+
+        private void ClearAutoPause()
+        {
+            _runtimeService.ClearAutoPause();
+            _toastService.Show("Auto-pause cleared", "Trading can resume.");
         }
 
         private void EmergencyStop()
