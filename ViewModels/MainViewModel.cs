@@ -48,8 +48,6 @@ namespace DerivSmartBotDesktop.ViewModels
         private bool _autoRotateEnabled = true;
         private bool _relaxEnvFiltersEnabled;
         private BotProfile _selectedProfile = BotProfile.Balanced;
-        private string _watchlistText = string.Empty;
-        private bool _watchlistDirty;
 
         public MainViewModel(BotRuntimeService runtimeService, ThemeService themeService, ToastService toastService, ExportService exportService)
         {
@@ -74,7 +72,6 @@ namespace DerivSmartBotDesktop.ViewModels
             PinSymbolCommand = new RelayCommand<SymbolTileViewModel>(PinSymbol);
             EmergencyStopCommand = new RelayCommand(EmergencyStop);
             OpenLogsWindowCommand = new RelayCommand(() => RequestOpenLogs?.Invoke());
-            ApplyWatchlistCommand = new RelayCommand(ApplyWatchlist);
 
             EquityPlotModel = CreatePlotModel(OxyColor.Parse("#4C8DFF"), out _equitySeries);
             DrawdownPlotModel = CreatePlotModel(OxyColor.Parse("#FF6477"), out _drawdownSeries);
@@ -112,7 +109,6 @@ namespace DerivSmartBotDesktop.ViewModels
         public RelayCommand<SymbolTileViewModel> PinSymbolCommand { get; }
         public RelayCommand EmergencyStopCommand { get; }
         public RelayCommand OpenLogsWindowCommand { get; }
-        public RelayCommand ApplyWatchlistCommand { get; }
 
         public bool IsConnected
         {
@@ -298,16 +294,6 @@ namespace DerivSmartBotDesktop.ViewModels
             }
         }
 
-        public string WatchlistText
-        {
-            get => _watchlistText;
-            set
-            {
-                _watchlistText = value;
-                _watchlistDirty = true;
-                OnPropertyChanged();
-            }
-        }
 
         public ObservableCollection<ToastItem> Toasts => _toastService.Toasts;
 
@@ -404,8 +390,6 @@ namespace DerivSmartBotDesktop.ViewModels
             CollectionSyncService.Sync(Logs.Logs, snapshot.Logs, l => l.Id, CopyLog);
             CollectionSyncService.Sync(Alerts.Alerts, snapshot.Alerts, a => a.Id, CopyAlert);
             CollectionSyncService.Sync(WatchlistSymbols, snapshot.Watchlist, s => s, (t, s) => { });
-            if (!_watchlistDirty)
-                SetWatchlistTextFromSnapshot(snapshot.Watchlist);
         }
 
         private void SyncKpis(BotSnapshot snapshot)
@@ -476,28 +460,6 @@ namespace DerivSmartBotDesktop.ViewModels
             target.AccentBrush = source.AccentBrush;
         }
 
-        private void ApplyWatchlist()
-        {
-            var raw = WatchlistText ?? string.Empty;
-            var symbols = raw
-                .Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(s => s.Trim())
-                .Where(s => s.Length > 0)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            if (symbols.Count == 0)
-                return;
-
-            _runtimeService.ApplyWatchlist(symbols);
-            _watchlistDirty = false;
-        }
-
-        private void SetWatchlistTextFromSnapshot(System.Collections.Generic.IEnumerable<string> watchlist)
-        {
-            _watchlistText = string.Join(", ", watchlist);
-            OnPropertyChanged(nameof(WatchlistText));
-        }
 
         private static PlotModel CreatePlotModel(OxyColor lineColor, out LineSeries series)
         {

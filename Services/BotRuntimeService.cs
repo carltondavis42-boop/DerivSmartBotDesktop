@@ -158,9 +158,13 @@ namespace DerivSmartBotDesktop.Services
             controller.BotEvent += OnBotEvent;
             _controller = controller;
 
-            controller.SetSymbolsToWatch(DefaultSymbols);
+            var watchlist = ParseSymbols(_settings.WatchlistCsv);
+            if (watchlist.Count == 0)
+                watchlist = DefaultSymbols.ToList();
+
+            controller.SetSymbolsToWatch(watchlist);
             controller.SetAutoSymbolMode(_autoRotateEnabled ? AutoSymbolMode.Auto : AutoSymbolMode.Manual);
-            _ = SubscribeSymbolsAsync(DefaultSymbols);
+            _ = SubscribeSymbolsAsync(watchlist);
 
             _snapshotTimer ??= new Timer(_ => PublishSnapshot(), null, 0, 300);
         }
@@ -333,7 +337,10 @@ namespace DerivSmartBotDesktop.Services
 
             var watchlist = _controller?.SymbolsToWatch?.ToList() ?? new List<string>();
             if (watchlist.Count == 0)
-                watchlist.AddRange(DefaultSymbols);
+            {
+                var settingsList = ParseSymbols(_settings.WatchlistCsv);
+                watchlist.AddRange(settingsList.Count > 0 ? settingsList : DefaultSymbols);
+            }
             snapshot.Watchlist = watchlist;
 
             lock (_lock)
@@ -478,6 +485,10 @@ namespace DerivSmartBotDesktop.Services
             var balance = 10000 + rand.Next(-200, 200);
             UpdateEquitySeries(balance);
 
+            var settingsWatchlist = ParseSymbols(_settings.WatchlistCsv);
+            if (settingsWatchlist.Count == 0)
+                settingsWatchlist = DefaultSymbols.ToList();
+
             return new BotSnapshot
             {
                 Timestamp = DateTime.Now,
@@ -515,13 +526,26 @@ namespace DerivSmartBotDesktop.Services
                 UiRefreshRate = 300,
                 Latency = "-",
                 LatestException = "-",
-                Watchlist = DefaultSymbols.ToList(),
+                Watchlist = settingsWatchlist,
                 Trades = BuildMockTrades(),
                 Strategies = BuildMockStrategies(),
                 Symbols = BuildMockSymbols(),
                 Logs = BuildMockLogs(),
                 Alerts = BuildMockAlerts()
             };
+        }
+
+        private static List<string> ParseSymbols(string? csv)
+        {
+            if (string.IsNullOrWhiteSpace(csv))
+                return new List<string>();
+
+            return csv
+                .Split(new[] { ',', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .Where(s => s.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }
 
         private static List<TradeRowViewModel> BuildMockTrades()

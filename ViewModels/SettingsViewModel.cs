@@ -14,6 +14,7 @@ namespace DerivSmartBotDesktop.ViewModels
         private string _appId = string.Empty;
         private string _apiToken = string.Empty;
         private string _symbol = string.Empty;
+        private string _watchlistCsv = string.Empty;
         private bool _isDemo;
         private bool _forwardTestEnabled;
         private bool _relaxEnvironmentForTesting;
@@ -29,6 +30,9 @@ namespace DerivSmartBotDesktop.ViewModels
             AppId = _initial.AppId;
             ApiToken = _initial.ApiToken;
             Symbol = string.IsNullOrWhiteSpace(_initial.Symbol) ? "R_100" : _initial.Symbol;
+            WatchlistCsv = string.IsNullOrWhiteSpace(_initial.WatchlistCsv)
+                ? new AppSettings().WatchlistCsv
+                : _initial.WatchlistCsv;
             IsDemo = _initial.IsDemo;
             ForwardTestEnabled = _initial.ForwardTestEnabled;
             RelaxEnvironmentForTesting = _initial.RelaxEnvironmentForTesting;
@@ -57,6 +61,12 @@ namespace DerivSmartBotDesktop.ViewModels
         {
             get => _symbol;
             set { _symbol = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsValid)); RefreshCommands(); }
+        }
+
+        public string WatchlistCsv
+        {
+            get => _watchlistCsv;
+            set { _watchlistCsv = value; OnPropertyChanged(); }
         }
 
         public bool IsDemo
@@ -127,6 +137,7 @@ namespace DerivSmartBotDesktop.ViewModels
                 AppId = AppId.Trim(),
                 ApiToken = ApiToken.Trim(),
                 Symbol = Symbol.Trim(),
+                WatchlistCsv = WatchlistCsv.Trim(),
                 IsDemo = IsDemo,
                 ForwardTestEnabled = ForwardTestEnabled,
                 RelaxEnvironmentForTesting = RelaxEnvironmentForTesting

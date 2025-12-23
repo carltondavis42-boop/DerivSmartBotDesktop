@@ -55,13 +55,6 @@
                         <CheckBox Content="Auto symbol rotation"
                                   IsChecked="{Binding AutoRotateEnabled}"
                                   Margin="0,0,12,0"/>
-                        <TextBlock Text="Watchlist:" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                        <TextBox Width="420"
-                                 Text="{Binding WatchlistText, UpdateSourceTrigger=PropertyChanged}"
-                                 Margin="0,0,8,0"/>
-                        <Button Content="Apply"
-                                Width="90"
-                                Command="{Binding ApplyWatchlistCommand}"/>
                     </StackPanel>
                 </ScrollViewer>
 

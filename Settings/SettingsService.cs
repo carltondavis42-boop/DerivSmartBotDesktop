@@ -12,6 +12,7 @@ namespace DerivSmartBotDesktop.Settings
         {
             public string AppId { get; set; }
             public string Symbol { get; set; }
+            public string WatchlistCsv { get; set; }
             public bool IsDemo { get; set; } = true;
             public bool ForwardTestEnabled { get; set; } = false;
             public bool RelaxEnvironmentForTesting { get; set; } = false;
@@ -48,6 +49,9 @@ namespace DerivSmartBotDesktop.Settings
                 {
                     AppId = store.AppId,
                     Symbol = store.Symbol,
+                    WatchlistCsv = string.IsNullOrWhiteSpace(store.WatchlistCsv)
+                        ? new AppSettings().WatchlistCsv
+                        : store.WatchlistCsv,
                     IsDemo = store.IsDemo,
                     ForwardTestEnabled = store.ForwardTestEnabled,
                     RelaxEnvironmentForTesting = store.RelaxEnvironmentForTesting
@@ -79,6 +83,7 @@ namespace DerivSmartBotDesktop.Settings
                 {
                     AppId = settings.AppId,
                     Symbol = settings.Symbol,
+                    WatchlistCsv = settings.WatchlistCsv,
                     IsDemo = settings.IsDemo,
                     ForwardTestEnabled = settings.ForwardTestEnabled,
                     RelaxEnvironmentForTesting = settings.RelaxEnvironmentForTesting,
