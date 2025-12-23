@@ -34,9 +34,8 @@ namespace DerivSmartBotDesktop.Core
 
         public CsvTradeDataLogger(string? directory = null)
         {
-            // Default to fixed path if no directory is passed in
             string baseDir = string.IsNullOrWhiteSpace(directory)
-                ? @"D:\DerivSmartBotDesktop-v5-master\Data\Logs"
+                ? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Logs")
                 : directory;
 
             _directory = baseDir;
