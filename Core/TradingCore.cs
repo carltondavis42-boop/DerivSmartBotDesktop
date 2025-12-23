@@ -2544,10 +2544,16 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
                 _autoPaused = false;
                 _autoPauseReason = AutoPauseReason.None;
                 _consecutiveLosses = 0;
+                if (_balance > 0)
+                {
+                    _sessionStartBalance = _balance;
+                    _sessionStartTime = DateTime.Now;
+                    _riskManager.ResetForNewSession(_balance);
+                }
             }
 
-            SetSkipReason("AUTO_PAUSE_CLEARED", "Auto-pause cleared by user.");
-            RaiseBotEvent("Auto-pause cleared by user.");
+            SetSkipReason("AUTO_PAUSE_CLEARED", "Auto-pause cleared by user; baseline reset.");
+            RaiseBotEvent("Auto-pause cleared by user; baseline reset.");
         }
 
 
