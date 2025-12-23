@@ -48,6 +48,7 @@ namespace DerivSmartBotDesktop.Services
             await client.AuthorizeAsync(_settings.ApiToken);
             await client.WaitUntilAuthorizedAsync();
             await client.RequestBalanceAsync();
+            _ = SubscribeSymbolsAsync(new[] { _settings.Symbol });
 
             var profileCfg = BotProfileConfig.ForProfile(BotProfile.Balanced);
             _riskSettings = profileCfg.Risk;
@@ -151,6 +152,7 @@ namespace DerivSmartBotDesktop.Services
         public void Start()
         {
             _controller?.Start();
+            _ = SubscribeSymbolsAsync(_controller?.SymbolsToWatch);
         }
 
         public void Stop()
@@ -166,11 +168,13 @@ namespace DerivSmartBotDesktop.Services
         public void ApplyWatchlist(IEnumerable<string> symbols)
         {
             _controller?.SetSymbolsToWatch(symbols);
+            _ = SubscribeSymbolsAsync(symbols);
         }
 
         public void SetActiveSymbol(string symbol)
         {
             _controller?.SetActiveSymbol(symbol);
+            _ = SubscribeSymbolsAsync(new[] { symbol });
         }
 
         private void OnBotEvent(string message)
@@ -189,6 +193,28 @@ namespace DerivSmartBotDesktop.Services
                 if (_logs.Count > 500)
                     _logs.RemoveRange(0, _logs.Count - 500);
             }
+        }
+
+        private Task SubscribeSymbolsAsync(IEnumerable<string> symbols)
+        {
+            var client = _client;
+            if (client == null || symbols == null)
+                return Task.CompletedTask;
+
+            return Task.Run(async () =>
+            {
+                foreach (var symbol in symbols.Where(s => !string.IsNullOrWhiteSpace(s)))
+                {
+                    try
+                    {
+                        await client.SubscribeTicksAsync(symbol.Trim()).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        // Ignore duplicate or transient subscribe errors.
+                    }
+                }
+            });
         }
 
         private void PublishSnapshot()

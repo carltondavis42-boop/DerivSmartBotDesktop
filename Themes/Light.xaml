@@ -16,9 +16,9 @@
     <SolidColorBrush x:Key="WarningBrush" Color="#D97706"/>
     <SolidColorBrush x:Key="InfoBrush" Color="#0284C7"/>
 
-    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#0F172A"/>
-    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#475569"/>
-    <SolidColorBrush x:Key="TextMutedBrush" Color="#94A3B8"/>
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#000000"/>
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#1F2937"/>
+    <SolidColorBrush x:Key="TextMutedBrush" Color="#4B5563"/>
 
     <SolidColorBrush x:Key="DividerBrush" Color="#E2E8F0"/>
     <SolidColorBrush x:Key="ChartGridBrush" Color="#E2E8F0"/>
