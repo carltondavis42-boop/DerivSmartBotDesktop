@@ -41,6 +41,7 @@ namespace DerivSmartBotDesktop.ViewModels
         private int _cooldownSeconds;
         private string _stakeModel = string.Empty;
         private bool _relaxGatesEnabled;
+        private bool _isLogsOpen = true;
 
         public MainViewModel(BotRuntimeService runtimeService, ThemeService themeService, ToastService toastService, ExportService exportService)
         {
@@ -64,6 +65,7 @@ namespace DerivSmartBotDesktop.ViewModels
             ExportTradesCommand = Trades.ExportCommand;
             PinSymbolCommand = new RelayCommand<SymbolTileViewModel>(PinSymbol);
             EmergencyStopCommand = new RelayCommand(EmergencyStop);
+            ToggleLogsCommand = new RelayCommand(ToggleLogs);
 
             EquityPlotModel = CreatePlotModel(OxyColor.Parse("#4C8DFF"), out _equitySeries);
             DrawdownPlotModel = CreatePlotModel(OxyColor.Parse("#FF6477"), out _drawdownSeries);
@@ -99,6 +101,7 @@ namespace DerivSmartBotDesktop.ViewModels
         public RelayCommand ExportTradesCommand { get; }
         public RelayCommand<SymbolTileViewModel> PinSymbolCommand { get; }
         public RelayCommand EmergencyStopCommand { get; }
+        public RelayCommand ToggleLogsCommand { get; }
 
         public bool IsConnected
         {
@@ -226,6 +229,12 @@ namespace DerivSmartBotDesktop.ViewModels
             set { _relaxGatesEnabled = value; OnPropertyChanged(); }
         }
 
+        public bool IsLogsOpen
+        {
+            get => _isLogsOpen;
+            set { _isLogsOpen = value; OnPropertyChanged(); }
+        }
+
         public ObservableCollection<ToastItem> Toasts => _toastService.Toasts;
 
         public async void InitializeRuntime(Settings.AppSettings settings)
@@ -256,6 +265,11 @@ namespace DerivSmartBotDesktop.ViewModels
         {
             _runtimeService.Stop();
             _toastService.Show("Emergency Stop", "Bot halted by operator.");
+        }
+
+        private void ToggleLogs()
+        {
+            IsLogsOpen = !IsLogsOpen;
         }
 
         private void PinSymbol(SymbolTileViewModel tile)

@@ -47,4 +47,19 @@ namespace DerivSmartBotDesktop.Converters
             return value is bool b ? !b : value;
         }
     }
+
+    [ValueConversion(typeof(bool), typeof(string))]
+    public class BoolToLogToggleTextConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            bool isOpen = value is bool b && b;
+            return isOpen ? "Hide Logs" : "Show Logs";
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotSupportedException();
+        }
+    }
 }
