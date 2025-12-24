@@ -22,12 +22,14 @@ import argparse
 import json
 import os
 import glob
-from datetime import datetime
+import warnings
+from datetime import datetime, UTC
 from typing import List, Dict, Tuple, Optional
 
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
+from sklearn.exceptions import ConvergenceWarning
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 
@@ -336,7 +338,7 @@ def should_update_models(new_score: float, old_metrics: Optional[Dict], force: b
 
 def archive_existing_models(paths: List[str], archive_dir: str):
     os.makedirs(archive_dir, exist_ok=True)
-    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     for path in paths:
         if os.path.exists(path):
             name = os.path.basename(path)
@@ -346,6 +348,9 @@ def archive_existing_models(paths: List[str], archive_dir: str):
 # ---------- MAIN ----------
 
 def main():
+    warnings.filterwarnings("ignore", category=FutureWarning)
+    warnings.filterwarnings("ignore", category=ConvergenceWarning)
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--log-dir", default=LOG_DIR)
     parser.add_argument("--ml-dir", default=ML_DIR)
@@ -380,7 +385,7 @@ def main():
     composite = regime_acc if edge_acc is None else (0.6 * regime_acc + 0.4 * edge_acc)
 
     metrics = {
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(UTC).isoformat(),
         "regime_accuracy": regime_acc,
         "edge_accuracy": edge_acc,
         "composite_score": composite,

@@ -104,7 +104,7 @@ namespace DerivSmartBotDesktop.Services
                 string stderr = await process.StandardError.ReadToEndAsync().ConfigureAwait(false);
                 await process.WaitForExitAsync().ConfigureAwait(false);
 
-                var success = process.ExitCode == 0 && string.IsNullOrWhiteSpace(stderr);
+                var success = process.ExitCode == 0;
                 var updated = success && !stdout.Contains("No improvement", StringComparison.OrdinalIgnoreCase);
 
                 if (!string.IsNullOrWhiteSpace(stdout))
