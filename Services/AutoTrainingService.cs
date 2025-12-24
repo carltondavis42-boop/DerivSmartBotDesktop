@@ -10,6 +10,8 @@ namespace DerivSmartBotDesktop.Services
     {
         private readonly string _scriptPath;
         private readonly int _tradesPerTrain;
+        private readonly string _logDir;
+        private readonly string _mlDir;
         private readonly Action<string> _log;
         private int _lastTrainedTradeCount;
         private int _isRunning;
@@ -19,10 +21,12 @@ namespace DerivSmartBotDesktop.Services
         public bool IsAvailable { get; private set; }
         public string LastStatus { get; private set; } = string.Empty;
 
-        public AutoTrainingService(string scriptPath, int tradesPerTrain, Action<string> log)
+        public AutoTrainingService(string scriptPath, int tradesPerTrain, string logDir, string mlDir, Action<string> log)
         {
             _scriptPath = scriptPath;
             _tradesPerTrain = tradesPerTrain;
+            _logDir = logDir;
+            _mlDir = mlDir;
             _log = log;
             _ = CheckDependenciesAsync();
         }
@@ -69,12 +73,20 @@ namespace DerivSmartBotDesktop.Services
                     return;
                 }
 
+                if (!Directory.Exists(_logDir) || Directory.GetFiles(_logDir, "trades-*.csv").Length == 0)
+                {
+                    UpdateStatus("[AutoTrain] No trade logs yet.", true);
+                    return;
+                }
+
                 UpdateStatus("[AutoTrain] Starting training...", IsAvailable);
 
                 var psi = new ProcessStartInfo
                 {
                     FileName = "python",
-                    Arguments = force ? $"\"{_scriptPath}\" --force" : $"\"{_scriptPath}\"",
+                    Arguments = force
+                        ? $"\"{_scriptPath}\" --force --log-dir \"{_logDir}\" --ml-dir \"{_mlDir}\""
+                        : $"\"{_scriptPath}\" --log-dir \"{_logDir}\" --ml-dir \"{_mlDir}\"",
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,

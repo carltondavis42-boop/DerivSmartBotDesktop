@@ -71,7 +71,11 @@ namespace DerivSmartBotDesktop.Services
 
             var baseDir = AppDomain.CurrentDomain.BaseDirectory;
             var trainScript = System.IO.Path.Combine(baseDir, "train_models.py");
-            _autoTrainingService = new AutoTrainingService(trainScript, tradesPerTrain: 200, LogAutoTrain);
+            var logDir = @"C:\Users\Ian\DerivSmartBotDesktop\Data\Trades";
+            var mlDir = @"C:\Users\Ian\DerivSmartBotDesktop\Data\ML";
+            Directory.CreateDirectory(logDir);
+            Directory.CreateDirectory(mlDir);
+            _autoTrainingService = new AutoTrainingService(trainScript, tradesPerTrain: 200, logDir, mlDir, LogAutoTrain);
             _autoTrainingService.TrainingCompleted += updated =>
             {
                 if (updated)
