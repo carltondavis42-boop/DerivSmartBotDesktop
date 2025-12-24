@@ -32,6 +32,16 @@ namespace DerivSmartBotDesktop.Core
                 return baseStake < settings.MinStake ? settings.MinStake : baseStake;
             }
 
+            // Only allow dynamic scaling when confidence and regime quality are strong.
+            double confidenceGate = Math.Clamp(modelConfidence, 0.0, 1.0);
+            double regimeGate = Math.Clamp(regimeScore ?? 0.0, 0.0, 1.0);
+            if (confidenceGate < settings.MinConfidenceForDynamicStake ||
+                regimeGate < settings.MinRegimeScoreForDynamicStake ||
+                marketHeatScore < settings.MinHeatForDynamicStake)
+            {
+                return baseStake < settings.MinStake ? settings.MinStake : baseStake;
+            }
+
             double stake = baseStake;
 
             // 1) Confidence-based adjustment

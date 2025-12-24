@@ -354,6 +354,50 @@ namespace DerivSmartBotDesktop.Services
                 risk.MaxConsecutiveLosses = _settings.MaxConsecutiveLosses;
             if (_settings.TradeCooldownSeconds > 0)
                 rules.TradeCooldown = TimeSpan.FromSeconds(_settings.TradeCooldownSeconds);
+            if (_settings.MinMarketHeatToTrade >= 0)
+                rules.MinMarketHeatToTrade = _settings.MinMarketHeatToTrade;
+            if (_settings.MaxMarketHeatToTrade > 0)
+                rules.MaxMarketHeatToTrade = _settings.MaxMarketHeatToTrade;
+            if (_settings.MinRegimeScoreToTrade > 0)
+                rules.MinRegimeScoreToTrade = _settings.MinRegimeScoreToTrade;
+            if (_settings.MinEnsembleConfidence > 0)
+                rules.MinEnsembleConfidence = _settings.MinEnsembleConfidence;
+            if (_settings.ExpectedProfitBlockThreshold > -9990)
+                rules.ExpectedProfitBlockThreshold = _settings.ExpectedProfitBlockThreshold;
+            if (_settings.ExpectedProfitWarnThreshold > -9990)
+                rules.ExpectedProfitWarnThreshold = _settings.ExpectedProfitWarnThreshold;
+            if (_settings.MinVolatilityToTrade > 0)
+                rules.MinVolatilityToTrade = _settings.MinVolatilityToTrade;
+            if (_settings.MaxVolatilityToTrade > 0)
+                rules.MaxVolatilityToTrade = _settings.MaxVolatilityToTrade;
+            if (_settings.LossCooldownMultiplierSeconds > 0)
+                rules.LossCooldownMultiplierSeconds = _settings.LossCooldownMultiplierSeconds;
+            if (_settings.MaxLossCooldownSeconds > 0)
+                rules.MaxLossCooldownSeconds = _settings.MaxLossCooldownSeconds;
+            if (_settings.MinTradesBeforeMl > 0)
+                rules.MinTradesBeforeMl = _settings.MinTradesBeforeMl;
+            if (_settings.StrategyProbationMinTrades > 0)
+                rules.StrategyProbationMinTrades = _settings.StrategyProbationMinTrades;
+            if (_settings.StrategyProbationWinRate > 0)
+                rules.StrategyProbationWinRate = _settings.StrategyProbationWinRate;
+            if (_settings.StrategyProbationBlockMinutes > 0)
+                rules.StrategyProbationBlockMinutes = _settings.StrategyProbationBlockMinutes;
+            if (_settings.StrategyProbationLossBlockMinutes > 0)
+                rules.StrategyProbationLossBlockMinutes = _settings.StrategyProbationLossBlockMinutes;
+            if (_settings.HighHeatRotationThreshold > 0)
+                rules.HighHeatRotationThreshold = _settings.HighHeatRotationThreshold;
+            if (_settings.HighHeatRotationIntervalSeconds > 0)
+                rules.HighHeatRotationIntervalSeconds = _settings.HighHeatRotationIntervalSeconds;
+            if (_settings.RotationScoreDelta > 0)
+                rules.RotationScoreDelta = _settings.RotationScoreDelta;
+            if (_settings.RotationScoreDeltaHighHeat > 0)
+                rules.RotationScoreDeltaHighHeat = _settings.RotationScoreDeltaHighHeat;
+            if (_settings.MinConfidenceForDynamicStake > 0)
+                risk.MinConfidenceForDynamicStake = _settings.MinConfidenceForDynamicStake;
+            if (_settings.MinRegimeScoreForDynamicStake > 0)
+                risk.MinRegimeScoreForDynamicStake = _settings.MinRegimeScoreForDynamicStake;
+            if (_settings.MinHeatForDynamicStake > 0)
+                risk.MinHeatForDynamicStake = _settings.MinHeatForDynamicStake;
         }
 
         private void OnBotEvent(string message)

@@ -21,6 +21,28 @@ namespace DerivSmartBotDesktop.ViewModels
         private int _maxConsecutiveLosses;
         private int _tradeCooldownSeconds;
         private int _minSamplesPerStrategy;
+        private double _minMarketHeatToTrade;
+        private double _maxMarketHeatToTrade;
+        private double _minRegimeScoreToTrade;
+        private double _minEnsembleConfidence;
+        private double _expectedProfitBlockThreshold;
+        private double _expectedProfitWarnThreshold;
+        private double _minVolatilityToTrade;
+        private double _maxVolatilityToTrade;
+        private int _lossCooldownMultiplierSeconds;
+        private int _maxLossCooldownSeconds;
+        private int _minTradesBeforeMl;
+        private int _strategyProbationMinTrades;
+        private double _strategyProbationWinRate;
+        private int _strategyProbationBlockMinutes;
+        private int _strategyProbationLossBlockMinutes;
+        private double _highHeatRotationThreshold;
+        private int _highHeatRotationIntervalSeconds;
+        private double _rotationScoreDelta;
+        private double _rotationScoreDeltaHighHeat;
+        private double _minConfidenceForDynamicStake;
+        private double _minRegimeScoreForDynamicStake;
+        private double _minHeatForDynamicStake;
         private bool _isDemo;
         private bool _forwardTestEnabled;
         private bool _relaxEnvironmentForTesting;
@@ -47,6 +69,28 @@ namespace DerivSmartBotDesktop.ViewModels
             MaxConsecutiveLosses = _initial.MaxConsecutiveLosses;
             TradeCooldownSeconds = _initial.TradeCooldownSeconds;
             MinSamplesPerStrategy = _initial.MinSamplesPerStrategy;
+            MinMarketHeatToTrade = _initial.MinMarketHeatToTrade;
+            MaxMarketHeatToTrade = _initial.MaxMarketHeatToTrade;
+            MinRegimeScoreToTrade = _initial.MinRegimeScoreToTrade;
+            MinEnsembleConfidence = _initial.MinEnsembleConfidence;
+            ExpectedProfitBlockThreshold = _initial.ExpectedProfitBlockThreshold;
+            ExpectedProfitWarnThreshold = _initial.ExpectedProfitWarnThreshold;
+            MinVolatilityToTrade = _initial.MinVolatilityToTrade;
+            MaxVolatilityToTrade = _initial.MaxVolatilityToTrade;
+            LossCooldownMultiplierSeconds = _initial.LossCooldownMultiplierSeconds;
+            MaxLossCooldownSeconds = _initial.MaxLossCooldownSeconds;
+            MinTradesBeforeMl = _initial.MinTradesBeforeMl;
+            StrategyProbationMinTrades = _initial.StrategyProbationMinTrades;
+            StrategyProbationWinRate = _initial.StrategyProbationWinRate;
+            StrategyProbationBlockMinutes = _initial.StrategyProbationBlockMinutes;
+            StrategyProbationLossBlockMinutes = _initial.StrategyProbationLossBlockMinutes;
+            HighHeatRotationThreshold = _initial.HighHeatRotationThreshold;
+            HighHeatRotationIntervalSeconds = _initial.HighHeatRotationIntervalSeconds;
+            RotationScoreDelta = _initial.RotationScoreDelta;
+            RotationScoreDeltaHighHeat = _initial.RotationScoreDeltaHighHeat;
+            MinConfidenceForDynamicStake = _initial.MinConfidenceForDynamicStake;
+            MinRegimeScoreForDynamicStake = _initial.MinRegimeScoreForDynamicStake;
+            MinHeatForDynamicStake = _initial.MinHeatForDynamicStake;
             IsDemo = _initial.IsDemo;
             ForwardTestEnabled = _initial.ForwardTestEnabled;
             RelaxEnvironmentForTesting = _initial.RelaxEnvironmentForTesting;
@@ -117,6 +161,138 @@ namespace DerivSmartBotDesktop.ViewModels
         {
             get => _minSamplesPerStrategy;
             set { _minSamplesPerStrategy = value; OnPropertyChanged(); }
+        }
+
+        public double MinMarketHeatToTrade
+        {
+            get => _minMarketHeatToTrade;
+            set { _minMarketHeatToTrade = value; OnPropertyChanged(); }
+        }
+
+        public double MaxMarketHeatToTrade
+        {
+            get => _maxMarketHeatToTrade;
+            set { _maxMarketHeatToTrade = value; OnPropertyChanged(); }
+        }
+
+        public double MinRegimeScoreToTrade
+        {
+            get => _minRegimeScoreToTrade;
+            set { _minRegimeScoreToTrade = value; OnPropertyChanged(); }
+        }
+
+        public double MinEnsembleConfidence
+        {
+            get => _minEnsembleConfidence;
+            set { _minEnsembleConfidence = value; OnPropertyChanged(); }
+        }
+
+        public double ExpectedProfitBlockThreshold
+        {
+            get => _expectedProfitBlockThreshold;
+            set { _expectedProfitBlockThreshold = value; OnPropertyChanged(); }
+        }
+
+        public double ExpectedProfitWarnThreshold
+        {
+            get => _expectedProfitWarnThreshold;
+            set { _expectedProfitWarnThreshold = value; OnPropertyChanged(); }
+        }
+
+        public double MinVolatilityToTrade
+        {
+            get => _minVolatilityToTrade;
+            set { _minVolatilityToTrade = value; OnPropertyChanged(); }
+        }
+
+        public double MaxVolatilityToTrade
+        {
+            get => _maxVolatilityToTrade;
+            set { _maxVolatilityToTrade = value; OnPropertyChanged(); }
+        }
+
+        public int LossCooldownMultiplierSeconds
+        {
+            get => _lossCooldownMultiplierSeconds;
+            set { _lossCooldownMultiplierSeconds = value; OnPropertyChanged(); }
+        }
+
+        public int MaxLossCooldownSeconds
+        {
+            get => _maxLossCooldownSeconds;
+            set { _maxLossCooldownSeconds = value; OnPropertyChanged(); }
+        }
+
+        public int MinTradesBeforeMl
+        {
+            get => _minTradesBeforeMl;
+            set { _minTradesBeforeMl = value; OnPropertyChanged(); }
+        }
+
+        public int StrategyProbationMinTrades
+        {
+            get => _strategyProbationMinTrades;
+            set { _strategyProbationMinTrades = value; OnPropertyChanged(); }
+        }
+
+        public double StrategyProbationWinRate
+        {
+            get => _strategyProbationWinRate;
+            set { _strategyProbationWinRate = value; OnPropertyChanged(); }
+        }
+
+        public int StrategyProbationBlockMinutes
+        {
+            get => _strategyProbationBlockMinutes;
+            set { _strategyProbationBlockMinutes = value; OnPropertyChanged(); }
+        }
+
+        public int StrategyProbationLossBlockMinutes
+        {
+            get => _strategyProbationLossBlockMinutes;
+            set { _strategyProbationLossBlockMinutes = value; OnPropertyChanged(); }
+        }
+
+        public double HighHeatRotationThreshold
+        {
+            get => _highHeatRotationThreshold;
+            set { _highHeatRotationThreshold = value; OnPropertyChanged(); }
+        }
+
+        public int HighHeatRotationIntervalSeconds
+        {
+            get => _highHeatRotationIntervalSeconds;
+            set { _highHeatRotationIntervalSeconds = value; OnPropertyChanged(); }
+        }
+
+        public double RotationScoreDelta
+        {
+            get => _rotationScoreDelta;
+            set { _rotationScoreDelta = value; OnPropertyChanged(); }
+        }
+
+        public double RotationScoreDeltaHighHeat
+        {
+            get => _rotationScoreDeltaHighHeat;
+            set { _rotationScoreDeltaHighHeat = value; OnPropertyChanged(); }
+        }
+
+        public double MinConfidenceForDynamicStake
+        {
+            get => _minConfidenceForDynamicStake;
+            set { _minConfidenceForDynamicStake = value; OnPropertyChanged(); }
+        }
+
+        public double MinRegimeScoreForDynamicStake
+        {
+            get => _minRegimeScoreForDynamicStake;
+            set { _minRegimeScoreForDynamicStake = value; OnPropertyChanged(); }
+        }
+
+        public double MinHeatForDynamicStake
+        {
+            get => _minHeatForDynamicStake;
+            set { _minHeatForDynamicStake = value; OnPropertyChanged(); }
         }
 
         public bool IsDemo
@@ -194,6 +370,28 @@ namespace DerivSmartBotDesktop.ViewModels
                 MaxConsecutiveLosses = MaxConsecutiveLosses,
                 TradeCooldownSeconds = TradeCooldownSeconds,
                 MinSamplesPerStrategy = MinSamplesPerStrategy,
+                MinMarketHeatToTrade = MinMarketHeatToTrade,
+                MaxMarketHeatToTrade = MaxMarketHeatToTrade,
+                MinRegimeScoreToTrade = MinRegimeScoreToTrade,
+                MinEnsembleConfidence = MinEnsembleConfidence,
+                ExpectedProfitBlockThreshold = ExpectedProfitBlockThreshold,
+                ExpectedProfitWarnThreshold = ExpectedProfitWarnThreshold,
+                MinVolatilityToTrade = MinVolatilityToTrade,
+                MaxVolatilityToTrade = MaxVolatilityToTrade,
+                LossCooldownMultiplierSeconds = LossCooldownMultiplierSeconds,
+                MaxLossCooldownSeconds = MaxLossCooldownSeconds,
+                MinTradesBeforeMl = MinTradesBeforeMl,
+                StrategyProbationMinTrades = StrategyProbationMinTrades,
+                StrategyProbationWinRate = StrategyProbationWinRate,
+                StrategyProbationBlockMinutes = StrategyProbationBlockMinutes,
+                StrategyProbationLossBlockMinutes = StrategyProbationLossBlockMinutes,
+                HighHeatRotationThreshold = HighHeatRotationThreshold,
+                HighHeatRotationIntervalSeconds = HighHeatRotationIntervalSeconds,
+                RotationScoreDelta = RotationScoreDelta,
+                RotationScoreDeltaHighHeat = RotationScoreDeltaHighHeat,
+                MinConfidenceForDynamicStake = MinConfidenceForDynamicStake,
+                MinRegimeScoreForDynamicStake = MinRegimeScoreForDynamicStake,
+                MinHeatForDynamicStake = MinHeatForDynamicStake,
                 IsDemo = IsDemo,
                 ForwardTestEnabled = ForwardTestEnabled,
                 RelaxEnvironmentForTesting = RelaxEnvironmentForTesting

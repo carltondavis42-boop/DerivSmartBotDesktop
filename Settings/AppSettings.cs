@@ -14,6 +14,28 @@
         public int MaxConsecutiveLosses { get; set; } = -1;
         public int TradeCooldownSeconds { get; set; } = -1;
         public int MinSamplesPerStrategy { get; set; } = 50;
+        public double MinMarketHeatToTrade { get; set; } = -1;
+        public double MaxMarketHeatToTrade { get; set; } = -1;
+        public double MinRegimeScoreToTrade { get; set; } = -1;
+        public double MinEnsembleConfidence { get; set; } = -1;
+        public double ExpectedProfitBlockThreshold { get; set; } = -9999;
+        public double ExpectedProfitWarnThreshold { get; set; } = -9999;
+        public double MinVolatilityToTrade { get; set; } = -1;
+        public double MaxVolatilityToTrade { get; set; } = -1;
+        public int LossCooldownMultiplierSeconds { get; set; } = -1;
+        public int MaxLossCooldownSeconds { get; set; } = -1;
+        public int MinTradesBeforeMl { get; set; } = -1;
+        public int StrategyProbationMinTrades { get; set; } = -1;
+        public double StrategyProbationWinRate { get; set; } = -1;
+        public int StrategyProbationBlockMinutes { get; set; } = -1;
+        public int StrategyProbationLossBlockMinutes { get; set; } = -1;
+        public double HighHeatRotationThreshold { get; set; } = -1;
+        public int HighHeatRotationIntervalSeconds { get; set; } = -1;
+        public double RotationScoreDelta { get; set; } = -1;
+        public double RotationScoreDeltaHighHeat { get; set; } = -1;
+        public double MinConfidenceForDynamicStake { get; set; } = -1;
+        public double MinRegimeScoreForDynamicStake { get; set; } = -1;
+        public double MinHeatForDynamicStake { get; set; } = -1;
 
         // ✅ NEW: used by SettingsViewModel.cs
         // True  = demo account

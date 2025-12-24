@@ -77,6 +77,50 @@
                     <TextBox Text="{Binding TradeCooldownSeconds, UpdateSourceTrigger=PropertyChanged}"/>
                     <TextBlock Text="Min samples per strategy" Margin="0,8,0,4"/>
                     <TextBox Text="{Binding MinSamplesPerStrategy, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Min market heat" Margin="0,12,0,4"/>
+                    <TextBox Text="{Binding MinMarketHeatToTrade, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Max market heat" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding MaxMarketHeatToTrade, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Min regime score" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding MinRegimeScoreToTrade, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Min ensemble confidence" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding MinEnsembleConfidence, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Expected profit block threshold" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding ExpectedProfitBlockThreshold, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Expected profit warn threshold" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding ExpectedProfitWarnThreshold, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Min volatility" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding MinVolatilityToTrade, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Max volatility" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding MaxVolatilityToTrade, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Loss cooldown multiplier (sec)" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding LossCooldownMultiplierSeconds, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Max loss cooldown (sec)" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding MaxLossCooldownSeconds, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Min trades before ML" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding MinTradesBeforeMl, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Strategy probation min trades" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding StrategyProbationMinTrades, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Strategy probation win rate (%)" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding StrategyProbationWinRate, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Probation block minutes" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding StrategyProbationBlockMinutes, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Probation loss block minutes" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding StrategyProbationLossBlockMinutes, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="High heat rotation threshold" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding HighHeatRotationThreshold, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="High heat rotation interval (sec)" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding HighHeatRotationIntervalSeconds, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Rotation score delta" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding RotationScoreDelta, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Rotation score delta (high heat)" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding RotationScoreDeltaHighHeat, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Min confidence for dynamic stake" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding MinConfidenceForDynamicStake, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Min regime score for dynamic stake" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding MinRegimeScoreForDynamicStake, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Min heat for dynamic stake" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding MinHeatForDynamicStake, UpdateSourceTrigger=PropertyChanged}"/>
 
                     <TextBlock Text="Appearance" Margin="0,16,0,4" FontWeight="SemiBold"/>
                     <ComboBox SelectedItem="{Binding SelectedTheme}" ItemsSource="{Binding ThemeOptions}" Width="140"/>

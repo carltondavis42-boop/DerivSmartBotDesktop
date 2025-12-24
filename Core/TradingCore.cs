@@ -1527,6 +1527,9 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
         // Dynamic stake controls
         private bool _enableDynamicStakeScaling = true;
         private double _maxStakeAsBalanceFraction = 0.05;   // e.g. 5% of balance
+        private double _minConfidenceForDynamicStake = 0.60;
+        private double _minRegimeScoreForDynamicStake = 0.60;
+        private double _minHeatForDynamicStake = 45.0;
 
         // Percent-based daily controls (UI-friendly)
         private double _maxDailyDrawdownPercent = 2.0;      // e.g. 2% max drawdown per day
@@ -1644,6 +1647,24 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
             set => _maxStakeAsBalanceFraction = value;
         }
 
+        public double MinConfidenceForDynamicStake
+        {
+            get => _minConfidenceForDynamicStake;
+            set => _minConfidenceForDynamicStake = value;
+        }
+
+        public double MinRegimeScoreForDynamicStake
+        {
+            get => _minRegimeScoreForDynamicStake;
+            set => _minRegimeScoreForDynamicStake = value;
+        }
+
+        public double MinHeatForDynamicStake
+        {
+            get => _minHeatForDynamicStake;
+            set => _minHeatForDynamicStake = value;
+        }
+
         // ========= PERCENT-BASED DAILY CONTROLS =========
 
         public double MaxDailyDrawdownPercent
@@ -1669,6 +1690,25 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
         public TimeSpan TradeCooldown { get; set; } = TimeSpan.FromSeconds(10);
         public int MaxTradesPerHour { get; set; } = 5000;
         public int MaxOpenTrades { get; set; } = 1;
+        public double MinMarketHeatToTrade { get; set; } = 35.0;
+        public double MaxMarketHeatToTrade { get; set; } = 90.0;
+        public double MinRegimeScoreToTrade { get; set; } = 0.55;
+        public double MinEnsembleConfidence { get; set; } = 0.55;
+        public double ExpectedProfitBlockThreshold { get; set; } = -0.05;
+        public double ExpectedProfitWarnThreshold { get; set; } = 0.0;
+        public int MinTradesBeforeMl { get; set; } = 50;
+        public double MinVolatilityToTrade { get; set; } = 0.02;
+        public double MaxVolatilityToTrade { get; set; } = 2.0;
+        public int LossCooldownMultiplierSeconds { get; set; } = 3;
+        public int MaxLossCooldownSeconds { get; set; } = 60;
+        public int StrategyProbationMinTrades { get; set; } = 20;
+        public double StrategyProbationWinRate { get; set; } = 45.0;
+        public int StrategyProbationBlockMinutes { get; set; } = 30;
+        public int StrategyProbationLossBlockMinutes { get; set; } = 15;
+        public double HighHeatRotationThreshold { get; set; } = 60.0;
+        public int HighHeatRotationIntervalSeconds { get; set; } = 60;
+        public double RotationScoreDelta { get; set; } = 8.0;
+        public double RotationScoreDeltaHighHeat { get; set; } = 3.0;
 
 
         public TimeSpan? SessionStartLocal { get; set; } = null;
@@ -1832,12 +1872,32 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
                             MaxDailyProfitFraction = 0.15,
                             MaxConsecutiveLosses = 5,
                             MinWinRatePercentToContinue = 50,
-                            MinTradesBeforeWinRateCheck = 40
+                            MinTradesBeforeWinRateCheck = 40,
+                            MinConfidenceForDynamicStake = 0.65,
+                            MinRegimeScoreForDynamicStake = 0.65,
+                            MinHeatForDynamicStake = 50.0
                         },
                         Rules = new BotRules
                         {
                             TradeCooldown = TimeSpan.FromSeconds(20),
-                            MaxTradesPerHour = 5000
+                            MaxTradesPerHour = 5000,
+                            MinMarketHeatToTrade = 40.0,
+                            MaxMarketHeatToTrade = 85.0,
+                            MinRegimeScoreToTrade = 0.60,
+                            MinEnsembleConfidence = 0.60,
+                            ExpectedProfitBlockThreshold = -0.05,
+                            ExpectedProfitWarnThreshold = 0.0,
+                            MinTradesBeforeMl = 80,
+                            LossCooldownMultiplierSeconds = 4,
+                            MaxLossCooldownSeconds = 90,
+                            StrategyProbationMinTrades = 25,
+                            StrategyProbationWinRate = 50.0,
+                            StrategyProbationBlockMinutes = 45,
+                            StrategyProbationLossBlockMinutes = 20,
+                            HighHeatRotationThreshold = 65.0,
+                            HighHeatRotationIntervalSeconds = 60,
+                            RotationScoreDelta = 10.0,
+                            RotationScoreDeltaHighHeat = 3.0
                         }
                     };
                 case BotProfile.Aggressive:
@@ -1851,12 +1911,32 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
                             MaxDailyDrawdownFraction = 0.4,
                             MaxDailyProfitFraction = 0.6,
                             MaxConsecutiveLosses = 12,
-                            MinWinRatePercentToContinue = 0
+                            MinWinRatePercentToContinue = 0,
+                            MinConfidenceForDynamicStake = 0.55,
+                            MinRegimeScoreForDynamicStake = 0.55,
+                            MinHeatForDynamicStake = 40.0
                         },
                         Rules = new BotRules
                         {
                             TradeCooldown = TimeSpan.FromSeconds(3),
-                            MaxTradesPerHour = 60
+                            MaxTradesPerHour = 60,
+                            MinMarketHeatToTrade = 30.0,
+                            MaxMarketHeatToTrade = 95.0,
+                            MinRegimeScoreToTrade = 0.50,
+                            MinEnsembleConfidence = 0.50,
+                            ExpectedProfitBlockThreshold = -0.10,
+                            ExpectedProfitWarnThreshold = -0.02,
+                            MinTradesBeforeMl = 30,
+                            LossCooldownMultiplierSeconds = 2,
+                            MaxLossCooldownSeconds = 45,
+                            StrategyProbationMinTrades = 15,
+                            StrategyProbationWinRate = 42.0,
+                            StrategyProbationBlockMinutes = 20,
+                            StrategyProbationLossBlockMinutes = 12,
+                            HighHeatRotationThreshold = 55.0,
+                            HighHeatRotationIntervalSeconds = 45,
+                            RotationScoreDelta = 6.0,
+                            RotationScoreDeltaHighHeat = 2.0
                         }
                     };
                 case BotProfile.Balanced:
@@ -1872,12 +1952,32 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
                             MaxDailyProfitFraction = 0.4,
                             MaxConsecutiveLosses = 8,
                             MinWinRatePercentToContinue = 45,
-                            MinTradesBeforeWinRateCheck = 40
+                            MinTradesBeforeWinRateCheck = 40,
+                            MinConfidenceForDynamicStake = 0.60,
+                            MinRegimeScoreForDynamicStake = 0.60,
+                            MinHeatForDynamicStake = 45.0
                         },
                         Rules = new BotRules
                         {
                             TradeCooldown = TimeSpan.FromSeconds(8),
-                            MaxTradesPerHour = 5000
+                            MaxTradesPerHour = 5000,
+                            MinMarketHeatToTrade = 35.0,
+                            MaxMarketHeatToTrade = 90.0,
+                            MinRegimeScoreToTrade = 0.55,
+                            MinEnsembleConfidence = 0.55,
+                            ExpectedProfitBlockThreshold = -0.05,
+                            ExpectedProfitWarnThreshold = 0.0,
+                            MinTradesBeforeMl = 50,
+                            LossCooldownMultiplierSeconds = 3,
+                            MaxLossCooldownSeconds = 60,
+                            StrategyProbationMinTrades = 20,
+                            StrategyProbationWinRate = 45.0,
+                            StrategyProbationBlockMinutes = 30,
+                            StrategyProbationLossBlockMinutes = 15,
+                            HighHeatRotationThreshold = 60.0,
+                            HighHeatRotationIntervalSeconds = 60,
+                            RotationScoreDelta = 8.0,
+                            RotationScoreDeltaHighHeat = 3.0
                         }
                     };
             }
@@ -2136,6 +2236,7 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
         private readonly IFeatureExtractor? _featureExtractor;
         private readonly ITradeDataLogger? _tradeLogger;
         private IStrategySelector? _strategySelector;
+        private readonly IStrategySelector _fallbackSelector = new RuleBasedStrategySelector();
 
         private readonly Dictionary<string, StrategyStats> _strategyStats = new();
         private readonly List<TradeRecord> _tradeHistory = new();
@@ -2689,8 +2790,22 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
                 symbolBias = 0.95;
             }
 
-            double composite = 0.45 * heat + 0.35 * perfComponent + 0.20 * regimeComponent;
+            double heatWeight = 0.45;
+            double perfWeight = 0.35;
+            double regimeWeight = 0.20;
+
+            if (heat >= _rules.HighHeatRotationThreshold)
+            {
+                heatWeight = 0.60;
+                perfWeight = 0.25;
+                regimeWeight = 0.15;
+            }
+
+            double composite = heatWeight * heat + perfWeight * perfComponent + regimeWeight * regimeComponent;
             composite *= symbolBias;
+
+            if (heat >= _rules.HighHeatRotationThreshold && stats.LastRegimeScore < _rules.MinRegimeScoreToTrade)
+                composite *= 0.85;
 
             if (stats.LastUpdated != default)
             {
@@ -2713,8 +2828,6 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
                 return;
 
             var now = DateTime.Now;
-            if ((now - _lastSymbolRotationTime) < _minSymbolRotationInterval)
-                return;
 
             var candidates = new List<(string Symbol, SymbolPerformanceStats Stats, double Score)>();
 
@@ -2746,6 +2859,15 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
             candidates.Sort((a, b) => b.Score.CompareTo(a.Score));
             var best = candidates[0];
 
+            var minInterval = _minSymbolRotationInterval;
+            if (best.Stats.LastHeat >= _rules.HighHeatRotationThreshold)
+            {
+                minInterval = TimeSpan.FromSeconds(_rules.HighHeatRotationIntervalSeconds);
+            }
+
+            if ((now - _lastSymbolRotationTime) < minInterval)
+                return;
+
             var current = _activeSymbol;
             if (string.IsNullOrWhiteSpace(current))
             {
@@ -2763,7 +2885,11 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
             if (best.Symbol.Equals(current, StringComparison.OrdinalIgnoreCase))
                 return;
 
-            if (best.Score < currentScore + 8.0)
+            var scoreDelta = best.Stats.LastHeat >= _rules.HighHeatRotationThreshold
+                ? _rules.RotationScoreDeltaHighHeat
+                : _rules.RotationScoreDelta;
+
+            if (best.Score < currentScore + scoreDelta)
                 return;
 
             RaiseBotEvent($"Auto-rotation: switching active symbol from {current} to {best.Symbol} (score {best.Score:F1} vs {currentScore:F1}).");
@@ -2885,7 +3011,17 @@ private void OnTickReceived(Tick tick)
                 return;
             }
 
-            if ((now - _lastTradeTime) < _rules.TradeCooldown)
+            var effectiveCooldown = _rules.TradeCooldown;
+            if (_consecutiveLosses >= 2 && _rules.LossCooldownMultiplierSeconds > 0)
+            {
+                var extraSeconds = Math.Min(
+                    _consecutiveLosses * _rules.LossCooldownMultiplierSeconds,
+                    _rules.MaxLossCooldownSeconds);
+                if (extraSeconds > 0)
+                    effectiveCooldown += TimeSpan.FromSeconds(extraSeconds);
+            }
+
+            if ((now - _lastTradeTime) < effectiveCooldown)
             {
                 SetSkipReason("COOLDOWN", "Trade cooldown has not yet expired.");
                 return;
@@ -2975,9 +3111,13 @@ private void OnTickReceived(Tick tick)
             }
 
             StrategyDecision ensemble;
-            if (_strategySelector != null && CurrentDiagnostics != null)
+            if (CurrentDiagnostics != null)
             {
-                ensemble = _strategySelector.SelectBest(
+                bool useMl = _strategySelector != null &&
+                             (_rules.MinTradesBeforeMl <= 0 || _tradeHistory.Count >= _rules.MinTradesBeforeMl);
+
+                var selector = useMl ? _strategySelector : _fallbackSelector;
+                ensemble = selector.SelectBest(
                     tick,
                     _context,
                     CurrentDiagnostics,
@@ -2992,9 +3132,7 @@ private void OnTickReceived(Tick tick)
                 ensemble = AIHelpers.EnsembleVote(decisions);
             }
 
-            const double MinEnsembleConfidence = 0.40;
-
-            if (ensemble.Signal == TradeSignal.None || ensemble.Confidence < MinEnsembleConfidence)
+            if (ensemble.Signal == TradeSignal.None || ensemble.Confidence < _rules.MinEnsembleConfidence)
             {
                 SetSkipReason("LOW_CONFIDENCE",
                     $"Ensemble confidence too low (conf={ensemble.Confidence:F2}), or no agreement.");
@@ -3007,11 +3145,11 @@ private void OnTickReceived(Tick tick)
 
 
             // Allow neutral edge; block only if score is meaningfully negative.
-            const double ExpectedProfitBlockThreshold = -0.20;   // block only if edge < -0.20
-            const double ColdMarketHeatThreshold = 30.0;     // treat "cold" as heat < 30
+            double expectedBlock = _rules.ExpectedProfitBlockThreshold;
+            double expectedWarn = _rules.ExpectedProfitWarnThreshold;
 
-            if (expectedProfitScore <= ExpectedProfitBlockThreshold &&
-                MarketHeatScore < ColdMarketHeatThreshold)
+            if (expectedProfitScore <= expectedBlock &&
+                MarketHeatScore < _rules.MinMarketHeatToTrade)
             {
                 SetSkipReason("NEGATIVE_EXPECTED_PROFIT",
                     $"AI expected-profit score is {expectedProfitScore:F2} (Heat={MarketHeatScore:F1}); skipping trade in cold regime.");
@@ -3021,7 +3159,7 @@ private void OnTickReceived(Tick tick)
             }
 
             // Warn but allow when slightly negative in warmer regimes.
-            if (expectedProfitScore < 0.0 && MarketHeatScore >= ColdMarketHeatThreshold)
+            if (expectedProfitScore < expectedWarn && MarketHeatScore >= _rules.MinMarketHeatToTrade)
             {
                 RaiseBotEvent(
                     $"[NEGATIVE_EXPECTED_PROFIT_WARN] Expected-profit score is {expectedProfitScore:F2} " +
@@ -3209,11 +3347,51 @@ private void OnTickReceived(Tick tick)
                 return false;
             }
 
+            // ===== 1b) HEAT + REGIME CONFIDENCE GATING =====
+
+            double heatScore = Math.Clamp(MarketHeatScore, 0.0, 100.0);
+            if (heatScore < _rules.MinMarketHeatToTrade)
+            {
+                if (!RelaxEnvironmentForTesting)
+                {
+                    SetSkipReason("HEAT_LOW", $"Market heat too low ({heatScore:F1} < {_rules.MinMarketHeatToTrade:F1}).");
+                    return false;
+                }
+
+                RaiseBotEvent(
+                    $"[HEAT_LOW] Heat {heatScore:F1} below {_rules.MinMarketHeatToTrade:F1}. [TEST MODE: warning only, not blocking.]");
+            }
+
+            if (_rules.MaxMarketHeatToTrade > 0 && heatScore > _rules.MaxMarketHeatToTrade)
+            {
+                if (!RelaxEnvironmentForTesting)
+                {
+                    SetSkipReason("HEAT_HIGH", $"Market heat too high ({heatScore:F1} > {_rules.MaxMarketHeatToTrade:F1}).");
+                    return false;
+                }
+
+                RaiseBotEvent(
+                    $"[HEAT_HIGH] Heat {heatScore:F1} above {_rules.MaxMarketHeatToTrade:F1}. [TEST MODE: warning only, not blocking.]");
+            }
+
+            if (diag.RegimeScore.HasValue && diag.RegimeScore.Value < _rules.MinRegimeScoreToTrade)
+            {
+                if (!RelaxEnvironmentForTesting)
+                {
+                    SetSkipReason("REGIME_WEAK",
+                        $"Regime confidence too low ({diag.RegimeScore.Value:F2} < {_rules.MinRegimeScoreToTrade:F2}).");
+                    return false;
+                }
+
+                RaiseBotEvent(
+                    $"[REGIME_WEAK] Regime score {diag.RegimeScore.Value:F2} below {_rules.MinRegimeScoreToTrade:F2}. [TEST MODE: warning only, not blocking.]");
+            }
+
             // ===== 2) VOLATILITY BAND (with TEST-mode relaxation) =====
 
             if (diag.Volatility is double vol)
             {
-                if (vol < 0.02 || vol > 2.0)
+                if (vol < _rules.MinVolatilityToTrade || vol > _rules.MaxVolatilityToTrade)
                 {
                     if (!RelaxEnvironmentForTesting)
                     {
@@ -3749,19 +3927,20 @@ private void OnTickReceived(Tick tick)
             var recent = _tradeHistory
                 .Where(t => t.StrategyName == strategyName)
                 .OrderByDescending(t => t.Time)
-                .Take(20)
+                .Take(Math.Max(_rules.StrategyProbationMinTrades, 20))
                 .ToList();
 
-            if (recent.Count < 10) return;
+            if (recent.Count < _rules.StrategyProbationMinTrades)
+                return;
 
             int wins = recent.Count(t => t.Profit >= 0);
             double winRate = (double)wins / recent.Count * 100.0;
 
             bool threeLosses = recent.Take(3).All(t => t.Profit < 0);
 
-            if (threeLosses || winRate < 40.0)
+            if (threeLosses || winRate < _rules.StrategyProbationWinRate)
             {
-                int blockMinutes = threeLosses ? 15 : 30;
+                int blockMinutes = threeLosses ? _rules.StrategyProbationLossBlockMinutes : _rules.StrategyProbationBlockMinutes;
                 _strategyBlockedUntil[strategyName] = DateTime.Now.AddMinutes(blockMinutes);
                 RaiseBotEvent($"Strategy '{strategyName}' temporarily disabled ({blockMinutes} min) due to poor recent performance (win rate last {recent.Count} trades: {winRate:F1}%).");
             }
