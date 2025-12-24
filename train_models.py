@@ -269,9 +269,9 @@ def train_edge_models(per_strategy: Dict[str, tuple]) -> Dict:
     return model_dict
 
 
-def evaluate_regime_model(X: np.ndarray, y: np.ndarray) -> float:
-    if X.shape[0] < MIN_TOTAL_SAMPLES:
-        raise RuntimeError(f"Not enough samples for regime model ({X.shape[0]} < {MIN_TOTAL_SAMPLES}).")
+def evaluate_regime_model(X: np.ndarray, y: np.ndarray, min_total: int) -> float:
+    if X.shape[0] < min_total:
+        raise RuntimeError(f"Not enough samples for regime model ({X.shape[0]} < {min_total}).")
 
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42, stratify=y
@@ -287,7 +287,7 @@ def evaluate_regime_model(X: np.ndarray, y: np.ndarray) -> float:
     return float(accuracy_score(y_test, preds))
 
 
-def evaluate_edge_models(per_strategy: Dict[str, tuple]) -> Optional[float]:
+def evaluate_edge_models(per_strategy: Dict[str, tuple], min_samples: int) -> Optional[float]:
     if not per_strategy:
         return None
 
@@ -295,7 +295,7 @@ def evaluate_edge_models(per_strategy: Dict[str, tuple]) -> Optional[float]:
     weights = []
 
     for _, (X, y) in per_strategy.items():
-        if len(y) < MIN_SAMPLES_PER_STRATEGY:
+        if len(y) < min_samples:
             continue
 
         X_train, X_test, y_train, y_test = train_test_split(
@@ -334,13 +334,13 @@ def should_update_models(new_score: float, old_metrics: Optional[Dict], force: b
     return new_score > old_score
 
 
-def archive_existing_models():
-    os.makedirs(ARCHIVE_DIR, exist_ok=True)
+def archive_existing_models(paths: List[str], archive_dir: str):
+    os.makedirs(archive_dir, exist_ok=True)
     ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    for path in [REGIME_MODEL_PATH, EDGE_MODEL_PATH, METRICS_PATH]:
+    for path in paths:
         if os.path.exists(path):
             name = os.path.basename(path)
-            os.replace(path, os.path.join(ARCHIVE_DIR, f"{ts}_{name}"))
+            os.replace(path, os.path.join(archive_dir, f"{ts}_{name}"))
 
 
 # ---------- MAIN ----------
@@ -354,20 +354,18 @@ def main():
     parser.add_argument("--min-per-strategy", type=int, default=MIN_SAMPLES_PER_STRATEGY)
     args = parser.parse_args()
 
-    global LOG_DIR, ML_DIR, REGIME_MODEL_PATH, EDGE_MODEL_PATH, METRICS_PATH, MIN_TOTAL_SAMPLES, MIN_SAMPLES_PER_STRATEGY
+    log_dir = args.log_dir
+    ml_dir = args.ml_dir
+    regime_model_path = os.path.join(ml_dir, "regime-linear-v1.json")
+    edge_model_path = os.path.join(ml_dir, "edge-linear-v1.json")
+    metrics_path = os.path.join(ml_dir, "metrics.json")
+    min_total_samples = args.min_total
+    min_per_strategy = args.min_per_strategy
 
-    LOG_DIR = args.log_dir
-    ML_DIR = args.ml_dir
-    REGIME_MODEL_PATH = os.path.join(ML_DIR, "regime-linear-v1.json")
-    EDGE_MODEL_PATH = os.path.join(ML_DIR, "edge-linear-v1.json")
-    METRICS_PATH = os.path.join(ML_DIR, "metrics.json")
-    MIN_TOTAL_SAMPLES = args.min_total
-    MIN_SAMPLES_PER_STRATEGY = args.min_per_strategy
-
-    os.makedirs(ML_DIR, exist_ok=True)
+    os.makedirs(ml_dir, exist_ok=True)
 
     # 1) Load data
-    df = load_all_logs(LOG_DIR)
+    df = load_all_logs(log_dir)
 
     # 2) Infer feature columns
     feature_cols = infer_feature_columns(df)
@@ -376,8 +374,8 @@ def main():
     X_reg, y_reg = prepare_regime_data(df, feature_cols)
     per_strategy = prepare_edge_data(df, feature_cols)
 
-    regime_acc = evaluate_regime_model(X_reg, y_reg)
-    edge_acc = evaluate_edge_models(per_strategy)
+    regime_acc = evaluate_regime_model(X_reg, y_reg, min_total_samples)
+    edge_acc = evaluate_edge_models(per_strategy, min_per_strategy)
 
     composite = regime_acc if edge_acc is None else (0.6 * regime_acc + 0.4 * edge_acc)
 
@@ -389,7 +387,7 @@ def main():
         "samples": int(len(df)),
     }
 
-    existing = load_metrics(METRICS_PATH)
+    existing = load_metrics(metrics_path)
     if not should_update_models(composite, existing, args.force):
         print(f"No improvement. New={composite:.4f}, Old={existing.get('composite_score', 0.0):.4f}")
         return
@@ -400,18 +398,21 @@ def main():
     edge_json = train_edge_models(per_strategy)
     edge_json["feature_names"] = feature_cols
 
-    archive_existing_models()
+    archive_existing_models(
+        [regime_model_path, edge_model_path, metrics_path],
+        os.path.join(ml_dir, "archive")
+    )
 
-    with open(REGIME_MODEL_PATH, "w", encoding="utf-8") as f:
+    with open(regime_model_path, "w", encoding="utf-8") as f:
         json.dump(regime_json, f, indent=2)
-    with open(EDGE_MODEL_PATH, "w", encoding="utf-8") as f:
+    with open(edge_model_path, "w", encoding="utf-8") as f:
         json.dump(edge_json, f, indent=2)
-    with open(METRICS_PATH, "w", encoding="utf-8") as f:
+    with open(metrics_path, "w", encoding="utf-8") as f:
         json.dump(metrics, f, indent=2)
 
-    print(f"Saved regime model to {REGIME_MODEL_PATH}")
-    print(f"Saved edge model to {EDGE_MODEL_PATH}")
-    print(f"Saved metrics to {METRICS_PATH}")
+    print(f"Saved regime model to {regime_model_path}")
+    print(f"Saved edge model to {edge_model_path}")
+    print(f"Saved metrics to {metrics_path}")
 
 
 if __name__ == "__main__":

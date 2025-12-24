@@ -92,12 +92,20 @@ namespace DerivSmartBotDesktop.Services
                 string stderr = await process.StandardError.ReadToEndAsync().ConfigureAwait(false);
                 await process.WaitForExitAsync().ConfigureAwait(false);
 
-                var updated = !stdout.Contains("No improvement", StringComparison.OrdinalIgnoreCase);
+                var success = process.ExitCode == 0 && string.IsNullOrWhiteSpace(stderr);
+                var updated = success && !stdout.Contains("No improvement", StringComparison.OrdinalIgnoreCase);
 
                 if (!string.IsNullOrWhiteSpace(stdout))
                     _log("[AutoTrain] " + stdout.Trim());
                 if (!string.IsNullOrWhiteSpace(stderr))
                     _log("[AutoTrain][ERR] " + stderr.Trim());
+
+                if (!success)
+                {
+                    UpdateStatus("[AutoTrain] Failed. See error output.", false);
+                    TrainingCompleted?.Invoke(false);
+                    return;
+                }
 
                 UpdateStatus(updated ? "[AutoTrain] Model updated." : "[AutoTrain] No improvement.", IsAvailable);
                 TrainingCompleted?.Invoke(updated);
