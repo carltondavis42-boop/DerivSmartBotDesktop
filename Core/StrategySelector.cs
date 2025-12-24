@@ -133,27 +133,46 @@ namespace DerivSmartBotDesktop.Core
             if (string.Equals(modelType, "per_strategy_logistic_regression", StringComparison.OrdinalIgnoreCase))
             {
                 var featureNames = ReadFeatureNames(root);
+                var featureMeans = ReadDoubleArray(root, "feature_means");
+                var featureStds = ReadDoubleArray(root, "feature_stds");
 
-                if (root.TryGetProperty("strategies", out var strategiesEl) && strategiesEl.ValueKind == JsonValueKind.Array)
+                if (root.TryGetProperty("strategies", out var strategiesEl))
                 {
-                    foreach (var s in strategiesEl.EnumerateArray())
+                    if (strategiesEl.ValueKind == JsonValueKind.Array)
                     {
-                        var lm = LogisticModel.FromJsonElement(s, featureNames);
-                        if (!string.IsNullOrWhiteSpace(lm.Strategy))
+                        foreach (var s in strategiesEl.EnumerateArray())
                         {
-                            _perStrategyModels[lm.Strategy] = lm;
+                            var lm = LogisticModel.FromJsonElement(s, featureNames, featureMeans, featureStds);
+                            if (!string.IsNullOrWhiteSpace(lm.Strategy))
+                            {
+                                _perStrategyModels[lm.Strategy] = lm;
+                            }
+                        }
+                    }
+                    else if (strategiesEl.ValueKind == JsonValueKind.Object)
+                    {
+                        foreach (var prop in strategiesEl.EnumerateObject())
+                        {
+                            var lm = LogisticModel.FromLegacyProperty(prop, featureNames, featureMeans, featureStds);
+                            if (!string.IsNullOrWhiteSpace(lm.Strategy))
+                            {
+                                _perStrategyModels[lm.Strategy] = lm;
+                            }
                         }
                     }
                 }
 
                 if (root.TryGetProperty("global_model", out var globalEl))
                 {
-                    _globalModel = LogisticModel.FromJsonElement(globalEl, featureNames, strategyName: "global");
+                    _globalModel = LogisticModel.FromJsonElement(globalEl, featureNames, featureMeans, featureStds, strategyName: "global");
                 }
             }
             else if (string.Equals(modelType, "binary_logistic_regression", StringComparison.OrdinalIgnoreCase))
             {
-                _globalModel = LogisticModel.FromJsonElement(root, ReadFeatureNames(root), strategyName: "global");
+                var featureNames = ReadFeatureNames(root);
+                var featureMeans = ReadDoubleArray(root, "feature_means");
+                var featureStds = ReadDoubleArray(root, "feature_stds");
+                _globalModel = LogisticModel.FromJsonElement(root, featureNames, featureMeans, featureStds, strategyName: "global");
             }
             else
             {
@@ -215,6 +234,23 @@ namespace DerivSmartBotDesktop.Core
             return new List<string>();
         }
 
+        private static double[] ReadDoubleArray(JsonElement root, string propertyName)
+        {
+            if (root.TryGetProperty(propertyName, out var el) && el.ValueKind == JsonValueKind.Array)
+            {
+                var values = new List<double>();
+                foreach (var item in el.EnumerateArray())
+                {
+                    if (item.ValueKind == JsonValueKind.Number && item.TryGetDouble(out var value))
+                        values.Add(value);
+                }
+
+                return values.ToArray();
+            }
+
+            return Array.Empty<double>();
+        }
+
         private static double Sigmoid(double x)
         {
             double ex = Math.Exp(Math.Clamp(x, -50, 50)); // guard overflow
@@ -226,17 +262,26 @@ namespace DerivSmartBotDesktop.Core
             public string Strategy { get; }
             public double[] Intercept { get; }
             public double[][] Coef { get; }
+            public double[] FeatureMeans { get; }
+            public double[] FeatureStds { get; }
             public IReadOnlyList<string> FeatureNames { get; }
 
-            private LogisticModel(string strategy, double[] intercept, double[][] coef, IReadOnlyList<string> featureNames)
+            private LogisticModel(string strategy, double[] intercept, double[][] coef, IReadOnlyList<string> featureNames, double[] featureMeans, double[] featureStds)
             {
                 Strategy = strategy;
                 Intercept = intercept;
                 Coef = coef;
                 FeatureNames = featureNames;
+                FeatureMeans = featureMeans;
+                FeatureStds = featureStds;
             }
 
-            public static LogisticModel FromJsonElement(JsonElement el, IReadOnlyList<string> parentFeatureNames, string? strategyName = null)
+            public static LogisticModel FromJsonElement(
+                JsonElement el,
+                IReadOnlyList<string> parentFeatureNames,
+                double[] parentFeatureMeans,
+                double[] parentFeatureStds,
+                string? strategyName = null)
             {
                 string strategy = strategyName ?? (el.TryGetProperty("strategy", out var sEl) ? sEl.GetString() ?? string.Empty : string.Empty);
 
@@ -250,15 +295,67 @@ namespace DerivSmartBotDesktop.Core
                         .ToList();
                 }
 
-                double[][] coef = el.TryGetProperty("coef", out var cEl) && cEl.ValueKind == JsonValueKind.Array
-                    ? cEl.Deserialize<double[][]>() ?? Array.Empty<double[]>()
-                    : Array.Empty<double[]>();
+                double[][] coef = Array.Empty<double[]>();
+                if (el.TryGetProperty("coef", out var cEl) && cEl.ValueKind == JsonValueKind.Array)
+                {
+                    if (cEl.EnumerateArray().FirstOrDefault().ValueKind == JsonValueKind.Array)
+                        coef = cEl.Deserialize<double[][]>() ?? Array.Empty<double[]>();
+                    else
+                        coef = new[] { cEl.Deserialize<double[]>() ?? Array.Empty<double>() };
+                }
 
-                double[] intercept = el.TryGetProperty("intercept", out var iEl) && iEl.ValueKind == JsonValueKind.Array
-                    ? iEl.Deserialize<double[]>() ?? Array.Empty<double>()
-                    : Array.Empty<double>();
+                double[] intercept = Array.Empty<double>();
+                if (el.TryGetProperty("intercept", out var iEl))
+                {
+                    if (iEl.ValueKind == JsonValueKind.Array)
+                        intercept = iEl.Deserialize<double[]>() ?? Array.Empty<double>();
+                    else if (iEl.ValueKind == JsonValueKind.Number && iEl.TryGetDouble(out var value))
+                        intercept = new[] { value };
+                }
 
-                return new LogisticModel(strategy, intercept, coef, featureNames);
+                var featureMeans = parentFeatureMeans;
+                var featureStds = parentFeatureStds;
+                if (el.TryGetProperty("feature_means", out var meansEl) && meansEl.ValueKind == JsonValueKind.Array)
+                    featureMeans = meansEl.Deserialize<double[]>() ?? parentFeatureMeans;
+                if (el.TryGetProperty("feature_stds", out var stdsEl) && stdsEl.ValueKind == JsonValueKind.Array)
+                    featureStds = stdsEl.Deserialize<double[]>() ?? parentFeatureStds;
+
+                return new LogisticModel(strategy, intercept, coef, featureNames, featureMeans, featureStds);
+            }
+
+            public static LogisticModel FromLegacyProperty(
+                JsonProperty prop,
+                IReadOnlyList<string> parentFeatureNames,
+                double[] parentFeatureMeans,
+                double[] parentFeatureStds)
+            {
+                string strategy = prop.Name;
+                var obj = prop.Value;
+                if (obj.ValueKind != JsonValueKind.Object)
+                    return new LogisticModel(strategy, Array.Empty<double>(), Array.Empty<double[]>(), parentFeatureNames, parentFeatureMeans, parentFeatureStds);
+
+                double[][] coef = Array.Empty<double[]>();
+                if (obj.TryGetProperty("coef", out var cEl))
+                {
+                    if (cEl.ValueKind == JsonValueKind.Array)
+                    {
+                        if (cEl.EnumerateArray().FirstOrDefault().ValueKind == JsonValueKind.Array)
+                            coef = cEl.Deserialize<double[][]>() ?? Array.Empty<double[]>();
+                        else
+                            coef = new[] { cEl.Deserialize<double[]>() ?? Array.Empty<double>() };
+                    }
+                }
+
+                double[] intercept = Array.Empty<double>();
+                if (obj.TryGetProperty("intercept", out var iEl))
+                {
+                    if (iEl.ValueKind == JsonValueKind.Array)
+                        intercept = iEl.Deserialize<double[]>() ?? Array.Empty<double>();
+                    else if (iEl.ValueKind == JsonValueKind.Number && iEl.TryGetDouble(out var value))
+                        intercept = new[] { value };
+                }
+
+                return new LogisticModel(strategy, intercept, coef, parentFeatureNames, parentFeatureMeans, parentFeatureStds);
             }
 
             public double Predict(FeatureVector? features, MarketDiagnostics diagnostics)
@@ -267,12 +364,13 @@ namespace DerivSmartBotDesktop.Core
                     return 0.5;
 
                 var vector = BuildFeatureVector(features, diagnostics, FeatureNames, Coef[0].Length);
+                var scaled = ApplyScaling(vector, FeatureMeans, FeatureStds);
 
                 double logit = (Intercept.Length > 0 ? Intercept[0] : 0.0);
                 for (int i = 0; i < Coef[0].Length; i++)
                 {
                     double w = Coef[0][i];
-                    double x = i < vector.Length ? vector[i] : 0.0;
+                    double x = i < scaled.Length ? scaled[i] : 0.0;
                     logit += w * x;
                 }
 
@@ -290,6 +388,24 @@ namespace DerivSmartBotDesktop.Core
                 }
 
                 return values;
+            }
+
+            private static double[] ApplyScaling(double[] values, double[] means, double[] stds)
+            {
+                if (values.Length == 0)
+                    return values;
+
+                var scaled = new double[values.Length];
+                for (int i = 0; i < values.Length; i++)
+                {
+                    double mean = i < means.Length ? means[i] : 0.0;
+                    double std = i < stds.Length ? stds[i] : 1.0;
+                    if (std <= 0)
+                        std = 1.0;
+                    scaled[i] = (values[i] - mean) / std;
+                }
+
+                return scaled;
             }
 
             private static double ResolveFeatureValue(string name, FeatureVector? features, MarketDiagnostics diagnostics)

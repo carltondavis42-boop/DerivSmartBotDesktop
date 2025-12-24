@@ -18,6 +18,7 @@ namespace DerivSmartBotDesktop.Settings
             public double MaxDailyLossAmount { get; set; } = -1;
             public int MaxConsecutiveLosses { get; set; } = -1;
             public int TradeCooldownSeconds { get; set; } = -1;
+            public int MinSamplesPerStrategy { get; set; } = 50;
             public bool IsDemo { get; set; } = true;
             public bool ForwardTestEnabled { get; set; } = false;
             public bool RelaxEnvironmentForTesting { get; set; } = false;
@@ -64,6 +65,9 @@ namespace DerivSmartBotDesktop.Settings
                     MaxDailyLossAmount = store.MaxDailyLossAmount,
                     MaxConsecutiveLosses = store.MaxConsecutiveLosses,
                     TradeCooldownSeconds = store.TradeCooldownSeconds,
+                    MinSamplesPerStrategy = store.MinSamplesPerStrategy <= 0
+                        ? new AppSettings().MinSamplesPerStrategy
+                        : store.MinSamplesPerStrategy,
                     IsDemo = store.IsDemo,
                     ForwardTestEnabled = store.ForwardTestEnabled,
                     RelaxEnvironmentForTesting = store.RelaxEnvironmentForTesting
@@ -101,6 +105,7 @@ namespace DerivSmartBotDesktop.Settings
                     MaxDailyLossAmount = settings.MaxDailyLossAmount,
                     MaxConsecutiveLosses = settings.MaxConsecutiveLosses,
                     TradeCooldownSeconds = settings.TradeCooldownSeconds,
+                    MinSamplesPerStrategy = settings.MinSamplesPerStrategy,
                     IsDemo = settings.IsDemo,
                     ForwardTestEnabled = settings.ForwardTestEnabled,
                     RelaxEnvironmentForTesting = settings.RelaxEnvironmentForTesting,

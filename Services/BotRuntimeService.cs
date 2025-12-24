@@ -46,6 +46,7 @@ namespace DerivSmartBotDesktop.Services
         private int _reconnectInProgress;
         private CancellationTokenSource? _reconnectCts;
         private const string DefaultTradeLogDir = @"C:\Users\Ian\DerivSmartBotDesktop\Data\Trades";
+        private const int DefaultMinSamplesPerStrategy = 50;
 
         public event Action<BotSnapshot>? SnapshotAvailable;
 
@@ -76,9 +77,12 @@ namespace DerivSmartBotDesktop.Services
                 ? DefaultTradeLogDir
                 : _settings.TradeLogDirectory.Trim();
             var mlDir = @"C:\Users\Ian\DerivSmartBotDesktop\Data\ML";
+            var minSamplesPerStrategy = _settings.MinSamplesPerStrategy > 0
+                ? _settings.MinSamplesPerStrategy
+                : DefaultMinSamplesPerStrategy;
             Directory.CreateDirectory(logDir);
             Directory.CreateDirectory(mlDir);
-            _autoTrainingService = new AutoTrainingService(trainScript, tradesPerTrain: 200, logDir, mlDir, LogAutoTrain);
+            _autoTrainingService = new AutoTrainingService(trainScript, tradesPerTrain: 200, minSamplesPerStrategy, logDir, mlDir, LogAutoTrain);
             _autoTrainingService.TrainingCompleted += updated =>
             {
                 if (updated)

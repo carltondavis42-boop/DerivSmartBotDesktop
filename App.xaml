@@ -13,6 +13,8 @@
             <conv:BoolToTextConnectedConverter x:Key="BoolToText_Connected" />
             <conv:BoolToTextBotConverter x:Key="BoolToText_Bot" />
             <conv:BoolInverseConverter x:Key="BoolInverseConverter" />
+            <conv:AutoTrainStatusToBadgeTextConverter x:Key="AutoTrainStatusToBadgeText" />
+            <conv:AutoTrainStatusToBrushConverter x:Key="AutoTrainStatusToBrush" />
             <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         </ResourceDictionary>
     </Application.Resources>

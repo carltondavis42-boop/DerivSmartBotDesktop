@@ -172,15 +172,23 @@ namespace DerivSmartBotDesktop.Core
         private readonly double[][] _coef;
         private readonly double[] _intercept;
         private readonly string[] _featureNames;
+        private readonly double[] _featureMeans;
+        private readonly double[] _featureStds;
 
         private sealed class RegimeModelConfig
         {
             // Must match JSON produced by train_regime_model.py
             public string[]? Classes { get; set; }
             public double[][]? Coef { get; set; }
+            public double[][]? Coefficients { get; set; }
             public double[]? Intercept { get; set; }
+            public double[]? Intercepts { get; set; }
             public string[]? Feature_Names { get; set; }
             public string[]? FeatureNames { get; set; }
+            public double[]? Feature_Means { get; set; }
+            public double[]? FeatureMeans { get; set; }
+            public double[]? Feature_Stds { get; set; }
+            public double[]? FeatureStds { get; set; }
         }
 
         public JsonRegimeModel(string jsonPath)
@@ -196,9 +204,11 @@ namespace DerivSmartBotDesktop.Core
                          ?? throw new InvalidOperationException("Failed to deserialize regime model JSON.");
 
             _classes = config.Classes ?? throw new InvalidOperationException("Missing 'classes' array in regime model JSON.");
-            _coef = config.Coef ?? throw new InvalidOperationException("Missing 'coef' array in regime model JSON.");
-            _intercept = config.Intercept ?? throw new InvalidOperationException("Missing 'intercept' array in regime model JSON.");
+            _coef = config.Coef ?? config.Coefficients ?? throw new InvalidOperationException("Missing 'coef' array in regime model JSON.");
+            _intercept = config.Intercept ?? config.Intercepts ?? throw new InvalidOperationException("Missing 'intercept' array in regime model JSON.");
             _featureNames = config.Feature_Names ?? config.FeatureNames ?? Array.Empty<string>();
+            _featureMeans = config.Feature_Means ?? config.FeatureMeans ?? Array.Empty<double>();
+            _featureStds = config.Feature_Stds ?? config.FeatureStds ?? Array.Empty<double>();
 
             if (_coef.Length != _classes.Length || _intercept.Length != _classes.Length)
                 throw new InvalidOperationException("Inconsistent lengths between classes, coef, and intercept arrays.");
@@ -223,13 +233,23 @@ namespace DerivSmartBotDesktop.Core
             double[] logits = new double[n];
             double maxLogit = double.NegativeInfinity;
 
+            double[] scaled = new double[features.Length];
+            for (int i = 0; i < features.Length; i++)
+            {
+                double mean = i < _featureMeans.Length ? _featureMeans[i] : 0.0;
+                double std = i < _featureStds.Length ? _featureStds[i] : 1.0;
+                if (std <= 0)
+                    std = 1.0;
+                scaled[i] = (features[i] - mean) / std;
+            }
+
             for (int i = 0; i < n; i++)
             {
                 var w = _coef[i];
                 double z = _intercept[i];
-                for (int j = 0; j < w.Length && j < features.Length; j++)
+                for (int j = 0; j < w.Length && j < scaled.Length; j++)
                 {
-                    z += w[j] * features[j];
+                    z += w[j] * scaled[j];
                 }
                 logits[i] = z;
                 if (z > maxLogit)

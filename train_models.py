@@ -32,6 +32,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
+from sklearn.preprocessing import StandardScaler
 
 
 # ---------- CONFIG ----------
@@ -173,7 +174,6 @@ def train_regime_model(X: np.ndarray, y: np.ndarray) -> Dict:
     # (but keep it in the mapping so C# can handle it)
     # For now we keep all labels present in data.
     clf = LogisticRegression(
-        multi_class="multinomial",
         solver="lbfgs",
         max_iter=1000
     )
@@ -187,8 +187,8 @@ def train_regime_model(X: np.ndarray, y: np.ndarray) -> Dict:
         "model_type": "multinomial_logistic_regression",
         "feature_names": [],  # filled later
         "classes": classes,
-        "coefficients": coefs,
-        "intercepts": intercepts,
+        "coef": coefs,
+        "intercept": intercepts,
     }
 
     return model_dict
@@ -239,33 +239,35 @@ def prepare_edge_data(df: pd.DataFrame, feature_cols: List[str]):
     return per_strategy
 
 
-def train_edge_models(per_strategy: Dict[str, tuple]) -> Dict:
+def train_edge_models(per_strategy: Dict[str, tuple], scaler: StandardScaler) -> Dict:
     """
     Train a binary logistic regression per strategy:
         P(win | features, strategy)
     Returns JSON-serializable dict.
     """
-    strategies_dict = {}
+    strategies = []
 
     for strategy_name, (X, y) in per_strategy.items():
+        X_scaled = scaler.transform(X)
         clf = LogisticRegression(
             solver="lbfgs",
             max_iter=1000
         )
-        clf.fit(X, y)
+        clf.fit(X_scaled, y)
 
         coef = clf.coef_[0].tolist()      # shape: [n_features]
         intercept = float(clf.intercept_[0])
 
-        strategies_dict[strategy_name] = {
-            "coef": coef,
-            "intercept": intercept,
-        }
+        strategies.append({
+            "strategy": strategy_name,
+            "coef": [coef],
+            "intercept": [intercept],
+        })
 
     model_dict = {
         "model_type": "per_strategy_logistic_regression",
         "feature_names": [],  # filled later
-        "strategies": strategies_dict,
+        "strategies": strategies,
     }
 
     return model_dict
@@ -280,7 +282,6 @@ def evaluate_regime_model(X: np.ndarray, y: np.ndarray, min_total: int) -> float
     )
 
     clf = LogisticRegression(
-        multi_class="multinomial",
         solver="lbfgs",
         max_iter=1000
     )
@@ -289,7 +290,7 @@ def evaluate_regime_model(X: np.ndarray, y: np.ndarray, min_total: int) -> float
     return float(accuracy_score(y_test, preds))
 
 
-def evaluate_edge_models(per_strategy: Dict[str, tuple], min_samples: int) -> Optional[float]:
+def evaluate_edge_models(per_strategy: Dict[str, tuple], scaler: StandardScaler, min_samples: int) -> Optional[float]:
     if not per_strategy:
         return None
 
@@ -300,8 +301,9 @@ def evaluate_edge_models(per_strategy: Dict[str, tuple], min_samples: int) -> Op
         if len(y) < min_samples:
             continue
 
+        X_scaled = scaler.transform(X)
         X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2, random_state=42, stratify=y
+            X_scaled, y, test_size=0.2, random_state=42, stratify=y
         )
         clf = LogisticRegression(solver="lbfgs", max_iter=1000)
         clf.fit(X_train, y_train)
@@ -375,12 +377,17 @@ def main():
     # 2) Infer feature columns
     feature_cols = infer_feature_columns(df)
 
-    # 3) Train regime model
+    # 3) Fit scaler + prepare data
+    scaler = StandardScaler()
+    all_features = df[feature_cols].values.astype(float)
+    scaler.fit(all_features)
+
     X_reg, y_reg = prepare_regime_data(df, feature_cols)
+    X_reg_scaled = scaler.transform(X_reg)
     per_strategy = prepare_edge_data(df, feature_cols)
 
-    regime_acc = evaluate_regime_model(X_reg, y_reg, min_total_samples)
-    edge_acc = evaluate_edge_models(per_strategy, min_per_strategy)
+    regime_acc = evaluate_regime_model(X_reg_scaled, y_reg, min_total_samples)
+    edge_acc = evaluate_edge_models(per_strategy, scaler, min_per_strategy)
 
     composite = regime_acc if edge_acc is None else (0.6 * regime_acc + 0.4 * edge_acc)
 
@@ -397,11 +404,15 @@ def main():
         print(f"No improvement. New={composite:.4f}, Old={existing.get('composite_score', 0.0):.4f}")
         return
 
-    regime_json = train_regime_model(X_reg, y_reg)
+    regime_json = train_regime_model(X_reg_scaled, y_reg)
     regime_json["feature_names"] = feature_cols
+    regime_json["feature_means"] = scaler.mean_.tolist()
+    regime_json["feature_stds"] = scaler.scale_.tolist()
 
-    edge_json = train_edge_models(per_strategy)
+    edge_json = train_edge_models(per_strategy, scaler)
     edge_json["feature_names"] = feature_cols
+    edge_json["feature_means"] = scaler.mean_.tolist()
+    edge_json["feature_stds"] = scaler.scale_.tolist()
 
     archive_existing_models(
         [regime_model_path, edge_model_path, metrics_path],

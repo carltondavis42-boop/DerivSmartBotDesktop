@@ -20,6 +20,7 @@ namespace DerivSmartBotDesktop.ViewModels
         private double _maxDailyLossAmount;
         private int _maxConsecutiveLosses;
         private int _tradeCooldownSeconds;
+        private int _minSamplesPerStrategy;
         private bool _isDemo;
         private bool _forwardTestEnabled;
         private bool _relaxEnvironmentForTesting;
@@ -45,6 +46,7 @@ namespace DerivSmartBotDesktop.ViewModels
             MaxDailyLossAmount = _initial.MaxDailyLossAmount;
             MaxConsecutiveLosses = _initial.MaxConsecutiveLosses;
             TradeCooldownSeconds = _initial.TradeCooldownSeconds;
+            MinSamplesPerStrategy = _initial.MinSamplesPerStrategy;
             IsDemo = _initial.IsDemo;
             ForwardTestEnabled = _initial.ForwardTestEnabled;
             RelaxEnvironmentForTesting = _initial.RelaxEnvironmentForTesting;
@@ -109,6 +111,12 @@ namespace DerivSmartBotDesktop.ViewModels
         {
             get => _tradeCooldownSeconds;
             set { _tradeCooldownSeconds = value; OnPropertyChanged(); }
+        }
+
+        public int MinSamplesPerStrategy
+        {
+            get => _minSamplesPerStrategy;
+            set { _minSamplesPerStrategy = value; OnPropertyChanged(); }
         }
 
         public bool IsDemo
@@ -185,6 +193,7 @@ namespace DerivSmartBotDesktop.ViewModels
                 MaxDailyLossAmount = MaxDailyLossAmount,
                 MaxConsecutiveLosses = MaxConsecutiveLosses,
                 TradeCooldownSeconds = TradeCooldownSeconds,
+                MinSamplesPerStrategy = MinSamplesPerStrategy,
                 IsDemo = IsDemo,
                 ForwardTestEnabled = ForwardTestEnabled,
                 RelaxEnvironmentForTesting = RelaxEnvironmentForTesting

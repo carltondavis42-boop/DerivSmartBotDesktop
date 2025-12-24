@@ -13,6 +13,7 @@
         public double MaxDailyLossAmount { get; set; } = -1;
         public int MaxConsecutiveLosses { get; set; } = -1;
         public int TradeCooldownSeconds { get; set; } = -1;
+        public int MinSamplesPerStrategy { get; set; } = 50;
 
         // ✅ NEW: used by SettingsViewModel.cs
         // True  = demo account

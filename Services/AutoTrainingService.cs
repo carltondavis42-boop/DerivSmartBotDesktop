@@ -10,6 +10,7 @@ namespace DerivSmartBotDesktop.Services
     {
         private readonly string _scriptPath;
         private readonly int _tradesPerTrain;
+        private readonly int _minSamplesPerStrategy;
         private readonly string _logDir;
         private readonly string _mlDir;
         private readonly Action<string> _log;
@@ -21,10 +22,11 @@ namespace DerivSmartBotDesktop.Services
         public bool IsAvailable { get; private set; }
         public string LastStatus { get; private set; } = string.Empty;
 
-        public AutoTrainingService(string scriptPath, int tradesPerTrain, string logDir, string mlDir, Action<string> log)
+        public AutoTrainingService(string scriptPath, int tradesPerTrain, int minSamplesPerStrategy, string logDir, string mlDir, Action<string> log)
         {
             _scriptPath = scriptPath;
             _tradesPerTrain = tradesPerTrain;
+            _minSamplesPerStrategy = minSamplesPerStrategy;
             _logDir = logDir;
             _mlDir = mlDir;
             _log = log;
@@ -85,8 +87,8 @@ namespace DerivSmartBotDesktop.Services
                 {
                     FileName = "python",
                     Arguments = force
-                        ? $"\"{_scriptPath}\" --force --log-dir \"{_logDir}\" --ml-dir \"{_mlDir}\""
-                        : $"\"{_scriptPath}\" --log-dir \"{_logDir}\" --ml-dir \"{_mlDir}\"",
+                        ? $"\"{_scriptPath}\" --force --log-dir \"{_logDir}\" --ml-dir \"{_mlDir}\" --min-per-strategy {_minSamplesPerStrategy}"
+                        : $"\"{_scriptPath}\" --log-dir \"{_logDir}\" --ml-dir \"{_mlDir}\" --min-per-strategy {_minSamplesPerStrategy}",
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,

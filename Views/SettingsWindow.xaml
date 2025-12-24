@@ -75,6 +75,8 @@
                     <TextBox Text="{Binding MaxConsecutiveLosses, UpdateSourceTrigger=PropertyChanged}"/>
                     <TextBlock Text="Trade cooldown (seconds)" Margin="0,8,0,4"/>
                     <TextBox Text="{Binding TradeCooldownSeconds, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Min samples per strategy" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding MinSamplesPerStrategy, UpdateSourceTrigger=PropertyChanged}"/>
 
                     <TextBlock Text="Appearance" Margin="0,16,0,4" FontWeight="SemiBold"/>
                     <ComboBox SelectedItem="{Binding SelectedTheme}" ItemsSource="{Binding ThemeOptions}" Width="140"/>
