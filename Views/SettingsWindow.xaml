@@ -53,6 +53,9 @@
                              TextWrapping="Wrap"
                              Height="72"/>
 
+                    <TextBlock Text="Trade log folder" Margin="0,12,0,4"/>
+                    <TextBox Text="{Binding TradeLogDirectory, UpdateSourceTrigger=PropertyChanged}"/>
+
                     <TextBlock Text="Mode" Margin="0,12,0,4"/>
                     <StackPanel Orientation="Horizontal">
                         <RadioButton Content="Demo" IsChecked="{Binding IsDemo}" Margin="0,0,12,0"/>

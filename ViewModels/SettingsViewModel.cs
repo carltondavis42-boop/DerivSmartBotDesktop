@@ -15,6 +15,7 @@ namespace DerivSmartBotDesktop.ViewModels
         private string _apiToken = string.Empty;
         private string _symbol = string.Empty;
         private string _watchlistCsv = string.Empty;
+        private string _tradeLogDirectory = string.Empty;
         private double _dailyDrawdownPercent;
         private double _maxDailyLossAmount;
         private int _maxConsecutiveLosses;
@@ -37,6 +38,9 @@ namespace DerivSmartBotDesktop.ViewModels
             WatchlistCsv = string.IsNullOrWhiteSpace(_initial.WatchlistCsv)
                 ? new AppSettings().WatchlistCsv
                 : _initial.WatchlistCsv;
+            TradeLogDirectory = string.IsNullOrWhiteSpace(_initial.TradeLogDirectory)
+                ? new AppSettings().TradeLogDirectory
+                : _initial.TradeLogDirectory;
             DailyDrawdownPercent = _initial.DailyDrawdownPercent;
             MaxDailyLossAmount = _initial.MaxDailyLossAmount;
             MaxConsecutiveLosses = _initial.MaxConsecutiveLosses;
@@ -75,6 +79,12 @@ namespace DerivSmartBotDesktop.ViewModels
         {
             get => _watchlistCsv;
             set { _watchlistCsv = value; OnPropertyChanged(); }
+        }
+
+        public string TradeLogDirectory
+        {
+            get => _tradeLogDirectory;
+            set { _tradeLogDirectory = value; OnPropertyChanged(); }
         }
 
         public double DailyDrawdownPercent
@@ -170,6 +180,7 @@ namespace DerivSmartBotDesktop.ViewModels
                 ApiToken = ApiToken.Trim(),
                 Symbol = Symbol.Trim(),
                 WatchlistCsv = WatchlistCsv.Trim(),
+                TradeLogDirectory = TradeLogDirectory.Trim(),
                 DailyDrawdownPercent = DailyDrawdownPercent,
                 MaxDailyLossAmount = MaxDailyLossAmount,
                 MaxConsecutiveLosses = MaxConsecutiveLosses,

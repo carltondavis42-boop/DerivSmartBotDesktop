@@ -13,6 +13,7 @@ namespace DerivSmartBotDesktop.Settings
             public string AppId { get; set; }
             public string Symbol { get; set; }
             public string WatchlistCsv { get; set; }
+            public string TradeLogDirectory { get; set; }
             public double DailyDrawdownPercent { get; set; } = -1;
             public double MaxDailyLossAmount { get; set; } = -1;
             public int MaxConsecutiveLosses { get; set; } = -1;
@@ -56,6 +57,9 @@ namespace DerivSmartBotDesktop.Settings
                     WatchlistCsv = string.IsNullOrWhiteSpace(store.WatchlistCsv)
                         ? new AppSettings().WatchlistCsv
                         : store.WatchlistCsv,
+                    TradeLogDirectory = string.IsNullOrWhiteSpace(store.TradeLogDirectory)
+                        ? new AppSettings().TradeLogDirectory
+                        : store.TradeLogDirectory,
                     DailyDrawdownPercent = store.DailyDrawdownPercent,
                     MaxDailyLossAmount = store.MaxDailyLossAmount,
                     MaxConsecutiveLosses = store.MaxConsecutiveLosses,
@@ -92,6 +96,7 @@ namespace DerivSmartBotDesktop.Settings
                     AppId = settings.AppId,
                     Symbol = settings.Symbol,
                     WatchlistCsv = settings.WatchlistCsv,
+                    TradeLogDirectory = settings.TradeLogDirectory,
                     DailyDrawdownPercent = settings.DailyDrawdownPercent,
                     MaxDailyLossAmount = settings.MaxDailyLossAmount,
                     MaxConsecutiveLosses = settings.MaxConsecutiveLosses,

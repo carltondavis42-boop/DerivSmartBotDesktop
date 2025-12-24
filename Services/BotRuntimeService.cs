@@ -45,6 +45,7 @@ namespace DerivSmartBotDesktop.Services
         private bool _autoTrainAvailable;
         private int _reconnectInProgress;
         private CancellationTokenSource? _reconnectCts;
+        private const string DefaultTradeLogDir = @"C:\Users\Ian\DerivSmartBotDesktop\Data\Trades";
 
         public event Action<BotSnapshot>? SnapshotAvailable;
 
@@ -71,7 +72,9 @@ namespace DerivSmartBotDesktop.Services
 
             var baseDir = AppDomain.CurrentDomain.BaseDirectory;
             var trainScript = System.IO.Path.Combine(baseDir, "train_models.py");
-            var logDir = @"C:\Users\Ian\DerivSmartBotDesktop\Data\Trades";
+            var logDir = string.IsNullOrWhiteSpace(_settings.TradeLogDirectory)
+                ? DefaultTradeLogDir
+                : _settings.TradeLogDirectory.Trim();
             var mlDir = @"C:\Users\Ian\DerivSmartBotDesktop\Data\ML";
             Directory.CreateDirectory(logDir);
             Directory.CreateDirectory(mlDir);
@@ -126,7 +129,7 @@ namespace DerivSmartBotDesktop.Services
             };
 
             var featureExtractor = new SimpleFeatureExtractor();
-            var tradeLogger = new CsvTradeDataLogger();
+            var tradeLogger = new CsvTradeDataLogger(logDir);
 
             IStrategySelector strategySelector;
             try
