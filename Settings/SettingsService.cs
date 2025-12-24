@@ -13,6 +13,10 @@ namespace DerivSmartBotDesktop.Settings
             public string AppId { get; set; }
             public string Symbol { get; set; }
             public string WatchlistCsv { get; set; }
+            public double DailyDrawdownPercent { get; set; } = -1;
+            public double MaxDailyLossAmount { get; set; } = -1;
+            public int MaxConsecutiveLosses { get; set; } = -1;
+            public int TradeCooldownSeconds { get; set; } = -1;
             public bool IsDemo { get; set; } = true;
             public bool ForwardTestEnabled { get; set; } = false;
             public bool RelaxEnvironmentForTesting { get; set; } = false;
@@ -52,6 +56,10 @@ namespace DerivSmartBotDesktop.Settings
                     WatchlistCsv = string.IsNullOrWhiteSpace(store.WatchlistCsv)
                         ? new AppSettings().WatchlistCsv
                         : store.WatchlistCsv,
+                    DailyDrawdownPercent = store.DailyDrawdownPercent,
+                    MaxDailyLossAmount = store.MaxDailyLossAmount,
+                    MaxConsecutiveLosses = store.MaxConsecutiveLosses,
+                    TradeCooldownSeconds = store.TradeCooldownSeconds,
                     IsDemo = store.IsDemo,
                     ForwardTestEnabled = store.ForwardTestEnabled,
                     RelaxEnvironmentForTesting = store.RelaxEnvironmentForTesting
@@ -84,6 +92,10 @@ namespace DerivSmartBotDesktop.Settings
                     AppId = settings.AppId,
                     Symbol = settings.Symbol,
                     WatchlistCsv = settings.WatchlistCsv,
+                    DailyDrawdownPercent = settings.DailyDrawdownPercent,
+                    MaxDailyLossAmount = settings.MaxDailyLossAmount,
+                    MaxConsecutiveLosses = settings.MaxConsecutiveLosses,
+                    TradeCooldownSeconds = settings.TradeCooldownSeconds,
                     IsDemo = settings.IsDemo,
                     ForwardTestEnabled = settings.ForwardTestEnabled,
                     RelaxEnvironmentForTesting = settings.RelaxEnvironmentForTesting,

@@ -63,6 +63,16 @@
                     <CheckBox Content="Forward test" IsChecked="{Binding ForwardTestEnabled}"/>
                     <CheckBox Content="Relax gates" IsChecked="{Binding RelaxEnvironmentForTesting}" IsEnabled="{Binding RelaxEnvironmentEnabled}"/>
 
+                    <TextBlock Text="Risk Controls" Margin="0,16,0,4" FontWeight="SemiBold"/>
+                    <TextBlock Text="Daily drawdown (%)" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding DailyDrawdownPercent, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Max daily loss ($)" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding MaxDailyLossAmount, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Max consecutive losses" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding MaxConsecutiveLosses, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Trade cooldown (seconds)" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding TradeCooldownSeconds, UpdateSourceTrigger=PropertyChanged}"/>
+
                     <TextBlock Text="Appearance" Margin="0,16,0,4" FontWeight="SemiBold"/>
                     <ComboBox SelectedItem="{Binding SelectedTheme}" ItemsSource="{Binding ThemeOptions}" Width="140"/>
 

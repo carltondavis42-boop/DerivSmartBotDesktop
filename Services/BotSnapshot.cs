@@ -39,6 +39,9 @@ namespace DerivSmartBotDesktop.Services
         public double UiRefreshRate { get; set; }
         public string LatestException { get; set; } = string.Empty;
         public string Latency { get; set; } = string.Empty;
+        public string AutoTrainStatus { get; set; } = string.Empty;
+        public string LastModelUpdate { get; set; } = string.Empty;
+        public bool AutoTrainAvailable { get; set; }
 
         public List<double> EquitySeries { get; set; } = new();
         public List<double> DrawdownSeries { get; set; } = new();

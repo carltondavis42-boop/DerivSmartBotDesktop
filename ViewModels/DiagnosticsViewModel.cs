@@ -7,6 +7,9 @@ namespace DerivSmartBotDesktop.ViewModels
         private double _uiRefreshRate;
         private string _latestException = string.Empty;
         private string _latency = string.Empty;
+        private string _autoTrainStatus = string.Empty;
+        private string _lastModelUpdate = string.Empty;
+        private bool _autoTrainAvailable;
 
         public string ConnectionStatus
         {
@@ -36,6 +39,24 @@ namespace DerivSmartBotDesktop.ViewModels
         {
             get => _latency;
             set { _latency = value; OnPropertyChanged(); }
+        }
+
+        public string AutoTrainStatus
+        {
+            get => _autoTrainStatus;
+            set { _autoTrainStatus = value; OnPropertyChanged(); }
+        }
+
+        public string LastModelUpdate
+        {
+            get => _lastModelUpdate;
+            set { _lastModelUpdate = value; OnPropertyChanged(); }
+        }
+
+        public bool AutoTrainAvailable
+        {
+            get => _autoTrainAvailable;
+            set { _autoTrainAvailable = value; OnPropertyChanged(); }
         }
     }
 }

@@ -41,6 +41,8 @@ namespace DerivSmartBotDesktop.Services
         private bool _relaxEnvFilters;
         private AutoTrainingService? _autoTrainingService;
         private DateTime _lastModelLoadUtc = DateTime.MinValue;
+        private string _autoTrainStatus = "Auto-train initializing...";
+        private bool _autoTrainAvailable;
         private int _reconnectInProgress;
         private CancellationTokenSource? _reconnectCts;
 
@@ -75,8 +77,14 @@ namespace DerivSmartBotDesktop.Services
                 if (updated)
                     TryReloadModelsIfUpdated();
             };
+            _autoTrainingService.StatusChanged += (status, available) =>
+            {
+                _autoTrainStatus = status;
+                _autoTrainAvailable = available;
+            };
 
             var profileCfg = BotProfileConfig.ForProfile(_currentProfile);
+            ApplyRiskOverrides(profileCfg.Risk, profileCfg.Rules);
             _riskSettings = profileCfg.Risk;
             _botRules = profileCfg.Rules;
 
@@ -279,6 +287,7 @@ namespace DerivSmartBotDesktop.Services
         {
             _currentProfile = profile;
             var cfg = BotProfileConfig.ForProfile(profile);
+            ApplyRiskOverrides(cfg.Risk, cfg.Rules);
             _riskSettings = cfg.Risk;
             _botRules = cfg.Rules;
             _controller?.UpdateConfigs(cfg.Risk, cfg.Rules);
@@ -308,6 +317,32 @@ namespace DerivSmartBotDesktop.Services
         {
             _controller?.SetActiveSymbol(symbol);
             _ = SubscribeSymbolsAsync(new[] { symbol });
+        }
+
+        public void TriggerTrainingNow()
+        {
+            if (_autoTrainingService == null)
+                return;
+
+            if (!_autoTrainAvailable)
+            {
+                OnBotEvent("[AutoTrain] Not available. Check Python deps.");
+                return;
+            }
+
+            _autoTrainingService.TrainNow();
+        }
+
+        private void ApplyRiskOverrides(RiskSettings risk, BotRules rules)
+        {
+            if (_settings.DailyDrawdownPercent > 0)
+                risk.MaxDailyDrawdownPercent = _settings.DailyDrawdownPercent;
+            if (_settings.MaxDailyLossAmount > 0)
+                risk.MaxDailyLossAmount = _settings.MaxDailyLossAmount;
+            if (_settings.MaxConsecutiveLosses > 0)
+                risk.MaxConsecutiveLosses = _settings.MaxConsecutiveLosses;
+            if (_settings.TradeCooldownSeconds > 0)
+                rules.TradeCooldown = TimeSpan.FromSeconds(_settings.TradeCooldownSeconds);
         }
 
         private void OnBotEvent(string message)
@@ -405,7 +440,12 @@ namespace DerivSmartBotDesktop.Services
                 MessageRate = 0,
                 UiRefreshRate = 300,
                 Latency = "-",
-                LatestException = "-"
+                LatestException = "-",
+                AutoTrainStatus = _autoTrainStatus,
+                AutoTrainAvailable = _autoTrainAvailable,
+                LastModelUpdate = _lastModelLoadUtc == DateTime.MinValue
+                    ? "-"
+                    : _lastModelLoadUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")
             };
 
             var trades = _controller?.TradeHistory ?? new List<TradeRecord>();
@@ -632,6 +672,11 @@ namespace DerivSmartBotDesktop.Services
                 UiRefreshRate = 300,
                 Latency = "-",
                 LatestException = "-",
+                AutoTrainStatus = _autoTrainStatus,
+                AutoTrainAvailable = _autoTrainAvailable,
+                LastModelUpdate = _lastModelLoadUtc == DateTime.MinValue
+                    ? "-"
+                    : _lastModelLoadUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"),
                 Watchlist = settingsWatchlist,
                 Trades = BuildMockTrades(),
                 Strategies = BuildMockStrategies(),

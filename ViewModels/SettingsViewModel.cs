@@ -15,6 +15,10 @@ namespace DerivSmartBotDesktop.ViewModels
         private string _apiToken = string.Empty;
         private string _symbol = string.Empty;
         private string _watchlistCsv = string.Empty;
+        private double _dailyDrawdownPercent;
+        private double _maxDailyLossAmount;
+        private int _maxConsecutiveLosses;
+        private int _tradeCooldownSeconds;
         private bool _isDemo;
         private bool _forwardTestEnabled;
         private bool _relaxEnvironmentForTesting;
@@ -33,6 +37,10 @@ namespace DerivSmartBotDesktop.ViewModels
             WatchlistCsv = string.IsNullOrWhiteSpace(_initial.WatchlistCsv)
                 ? new AppSettings().WatchlistCsv
                 : _initial.WatchlistCsv;
+            DailyDrawdownPercent = _initial.DailyDrawdownPercent;
+            MaxDailyLossAmount = _initial.MaxDailyLossAmount;
+            MaxConsecutiveLosses = _initial.MaxConsecutiveLosses;
+            TradeCooldownSeconds = _initial.TradeCooldownSeconds;
             IsDemo = _initial.IsDemo;
             ForwardTestEnabled = _initial.ForwardTestEnabled;
             RelaxEnvironmentForTesting = _initial.RelaxEnvironmentForTesting;
@@ -67,6 +75,30 @@ namespace DerivSmartBotDesktop.ViewModels
         {
             get => _watchlistCsv;
             set { _watchlistCsv = value; OnPropertyChanged(); }
+        }
+
+        public double DailyDrawdownPercent
+        {
+            get => _dailyDrawdownPercent;
+            set { _dailyDrawdownPercent = value; OnPropertyChanged(); }
+        }
+
+        public double MaxDailyLossAmount
+        {
+            get => _maxDailyLossAmount;
+            set { _maxDailyLossAmount = value; OnPropertyChanged(); }
+        }
+
+        public int MaxConsecutiveLosses
+        {
+            get => _maxConsecutiveLosses;
+            set { _maxConsecutiveLosses = value; OnPropertyChanged(); }
+        }
+
+        public int TradeCooldownSeconds
+        {
+            get => _tradeCooldownSeconds;
+            set { _tradeCooldownSeconds = value; OnPropertyChanged(); }
         }
 
         public bool IsDemo
@@ -138,6 +170,10 @@ namespace DerivSmartBotDesktop.ViewModels
                 ApiToken = ApiToken.Trim(),
                 Symbol = Symbol.Trim(),
                 WatchlistCsv = WatchlistCsv.Trim(),
+                DailyDrawdownPercent = DailyDrawdownPercent,
+                MaxDailyLossAmount = MaxDailyLossAmount,
+                MaxConsecutiveLosses = MaxConsecutiveLosses,
+                TradeCooldownSeconds = TradeCooldownSeconds,
                 IsDemo = IsDemo,
                 ForwardTestEnabled = ForwardTestEnabled,
                 RelaxEnvironmentForTesting = RelaxEnvironmentForTesting

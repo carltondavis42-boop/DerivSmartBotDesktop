@@ -11,6 +11,7 @@ namespace DerivSmartBotDesktop.ViewModels
     {
         private string _searchText = string.Empty;
         private bool _autoScroll = true;
+        private string _severityFilter = "All";
 
         public LogsViewModel()
         {
@@ -35,6 +36,14 @@ namespace DerivSmartBotDesktop.ViewModels
             set { _autoScroll = value; OnPropertyChanged(); }
         }
 
+        public string SeverityFilter
+        {
+            get => _severityFilter;
+            set { _severityFilter = value; OnPropertyChanged(); LogsView.Refresh(); }
+        }
+
+        public string[] SeverityOptions => new[] { "All", "Info", "Warning", "Error" };
+
         public RelayCommand CopyCommand { get; }
 
         private bool FilterLogs(object obj)
@@ -43,9 +52,23 @@ namespace DerivSmartBotDesktop.ViewModels
                 return false;
 
             if (string.IsNullOrWhiteSpace(SearchText))
-                return true;
+            {
+                return MatchesSeverity(item);
+            }
 
-            return item.Message.IndexOf(SearchText, StringComparison.OrdinalIgnoreCase) >= 0;
+            return item.Message.IndexOf(SearchText, StringComparison.OrdinalIgnoreCase) >= 0
+                   && MatchesSeverity(item);
+        }
+
+        private bool MatchesSeverity(LogItemViewModel item)
+        {
+            return SeverityFilter switch
+            {
+                "Info" => item.Severity == LogSeverity.Info,
+                "Warning" => item.Severity == LogSeverity.Warning,
+                "Error" => item.Severity == LogSeverity.Error,
+                _ => true
+            };
         }
 
         private void CopyLogs()

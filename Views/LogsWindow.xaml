@@ -14,6 +14,7 @@
 
         <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
             <TextBox Width="260" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0"/>
+            <ComboBox Width="140" ItemsSource="{Binding SeverityOptions}" SelectedItem="{Binding SeverityFilter}"/>
             <CheckBox Content="Auto-scroll" IsChecked="{Binding AutoScroll}" Margin="0,0,8,0"/>
             <Button Content="Copy" Width="120" Command="{Binding CopyCommand}"/>
         </StackPanel>

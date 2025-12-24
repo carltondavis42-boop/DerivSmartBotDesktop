@@ -16,6 +16,7 @@ namespace DerivSmartBotDesktop.ViewModels
         private readonly BotRuntimeService _runtimeService;
         private readonly ThemeService _themeService;
         private readonly ToastService _toastService;
+        private readonly ExportService _exportService;
         private readonly DispatcherTimer _uiTimer;
         private readonly LineSeries _equitySeries;
         private readonly LineSeries _drawdownSeries;
@@ -54,6 +55,7 @@ namespace DerivSmartBotDesktop.ViewModels
             _runtimeService = runtimeService;
             _themeService = themeService;
             _toastService = toastService;
+            _exportService = exportService;
 
             Trades = new TradesViewModel(exportService);
             Logs = new LogsViewModel();
@@ -73,6 +75,9 @@ namespace DerivSmartBotDesktop.ViewModels
             EmergencyStopCommand = new RelayCommand(EmergencyStop);
             OpenLogsWindowCommand = new RelayCommand(() => RequestOpenLogs?.Invoke());
             ClearAutoPauseCommand = new RelayCommand(ClearAutoPause);
+            TrainNowCommand = new RelayCommand(TrainNow);
+            ExportStrategiesCommand = new RelayCommand(ExportStrategies);
+            ExportSymbolsCommand = new RelayCommand(ExportSymbols);
 
             EquityPlotModel = CreatePlotModel(OxyColor.Parse("#4C8DFF"), out _equitySeries);
             DrawdownPlotModel = CreatePlotModel(OxyColor.Parse("#FF6477"), out _drawdownSeries);
@@ -111,6 +116,9 @@ namespace DerivSmartBotDesktop.ViewModels
         public RelayCommand EmergencyStopCommand { get; }
         public RelayCommand OpenLogsWindowCommand { get; }
         public RelayCommand ClearAutoPauseCommand { get; }
+        public RelayCommand TrainNowCommand { get; }
+        public RelayCommand ExportStrategiesCommand { get; }
+        public RelayCommand ExportSymbolsCommand { get; }
 
         public bool IsConnected
         {
@@ -329,6 +337,27 @@ namespace DerivSmartBotDesktop.ViewModels
             _toastService.Show("Auto-pause cleared", "Trading can resume.");
         }
 
+        private void TrainNow()
+        {
+            _runtimeService.TriggerTrainingNow();
+        }
+
+        private void ExportStrategies()
+        {
+            var folder = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+            var file = System.IO.Path.Combine(folder, $"Deriv_Strategies_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+            _exportService.ExportStrategyStatsCsv(StrategyRows, file);
+            _toastService.Show("Exported", "Strategy stats CSV saved to Desktop.");
+        }
+
+        private void ExportSymbols()
+        {
+            var folder = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+            var file = System.IO.Path.Combine(folder, $"Deriv_Symbols_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+            _exportService.ExportSymbolStatsCsv(SymbolTiles, file);
+            _toastService.Show("Exported", "Symbol stats CSV saved to Desktop.");
+        }
+
         private void EmergencyStop()
         {
             _runtimeService.Stop();
@@ -385,6 +414,9 @@ namespace DerivSmartBotDesktop.ViewModels
             Diagnostics.UiRefreshRate = snapshot.UiRefreshRate;
             Diagnostics.LatestException = snapshot.LatestException;
             Diagnostics.Latency = snapshot.Latency;
+            Diagnostics.AutoTrainStatus = snapshot.AutoTrainStatus;
+            Diagnostics.LastModelUpdate = snapshot.LastModelUpdate;
+            Diagnostics.AutoTrainAvailable = snapshot.AutoTrainAvailable;
 
             SyncKpis(snapshot);
             UpdateSeries(_equitySeries, snapshot.EquitySeries);
