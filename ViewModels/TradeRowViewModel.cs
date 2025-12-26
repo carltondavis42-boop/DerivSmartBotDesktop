@@ -59,6 +59,6 @@ namespace DerivSmartBotDesktop.ViewModels
             }
         }
 
-        public string Result => Profit >= 0 ? "Win" : "Loss";
+        public string Result => Profit > 0 ? "Win" : "Loss";
     }
 }

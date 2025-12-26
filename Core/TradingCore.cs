@@ -1869,6 +1869,7 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
                             MinStake = 0.35,
                             MaxStake = 5.0,
                             MaxDailyDrawdownFraction = 0.1,
+                            MaxDailyDrawdownPercent = 10.0,
                             MaxDailyProfitFraction = 0.15,
                             MaxConsecutiveLosses = 5,
                             MinWinRatePercentToContinue = 50,
@@ -1909,6 +1910,7 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
                             MinStake = 0.35,
                             MaxStake = 100.0,
                             MaxDailyDrawdownFraction = 0.4,
+                            MaxDailyDrawdownPercent = 40.0,
                             MaxDailyProfitFraction = 0.6,
                             MaxConsecutiveLosses = 12,
                             MinWinRatePercentToContinue = 0,
@@ -1949,6 +1951,7 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
                             MinStake = 0.35,
                             MaxStake = 25.0,
                             MaxDailyDrawdownFraction = 0.25,
+                            MaxDailyDrawdownPercent = 25.0,
                             MaxDailyProfitFraction = 0.4,
                             MaxConsecutiveLosses = 8,
                             MinWinRatePercentToContinue = 45,
@@ -2153,7 +2156,7 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
 
             if (sameStrategy.Count >= 10)
             {
-                int wins = sameStrategy.Count(t => t.Profit >= 0);
+                int wins = sameStrategy.Count(t => t.Profit > 0);
                 double winRate = (double)wins / sameStrategy.Count;
                 score += (winRate - 0.5) * 1.0;
             }
@@ -3217,7 +3220,7 @@ private void OnTickReceived(Tick tick)
                     sessionStartTime = DateTime.Now.AddHours(-24); // safe fallback
 
                 totalTrades = _tradeHistory.Count(t => t.Time >= sessionStartTime);
-                wins = _tradeHistory.Count(t => t.Time >= sessionStartTime && t.Profit >= 0);
+                wins = _tradeHistory.Count(t => t.Time >= sessionStartTime && t.Profit > 0);
             }
 
 
@@ -3725,9 +3728,6 @@ private void OnTickReceived(Tick tick)
                         ? trade.Stake * trade.PayoutMultiplier
                         : -trade.Stake;
 
-                    if (diff == 0.0)
-                        profit = 0.0;
-
                     closed ??= new List<(Guid, double)>();
                     closed.Add((trade.TradeId, profit));
                 }
@@ -3797,39 +3797,22 @@ private void OnTickReceived(Tick tick)
                         _tradeHistory.Add(record);
 
                         // Log trade with entry-time features to avoid label leakage
-                        if (_tradeLogger != null)
+                        if (_tradeLogger != null && record.EntryFeatures != null)
                         {
                             var features = record.EntryFeatures;
+                            var signal = record.Direction == "Buy"
+                                ? TradeSignal.Buy
+                                : TradeSignal.Sell;
 
-                            if (features == null && _featureExtractor != null && CurrentDiagnostics != null)
+                            var decision = record.Decision ?? new StrategyDecision
                             {
-                                var latestTick = _context.TickWindow.LastOrDefault();
-                                if (latestTick != null)
-                                {
-                                    features = _featureExtractor.Extract(
-                                        _context,
-                                        latestTick,
-                                        CurrentDiagnostics,
-                                        MarketHeatScore);
-                                }
-                            }
+                                StrategyName = strategyName,
+                                Signal = signal,
+                                Confidence = CurrentDiagnostics?.RegimeScore ?? 0.0,
+                                EdgeProbability = record.Decision?.EdgeProbability
+                            };
 
-                            if (features != null)
-                            {
-                                var signal = record.Direction == "Buy"
-                                    ? TradeSignal.Buy
-                                    : TradeSignal.Sell;
-
-                                var decision = record.Decision ?? new StrategyDecision
-                                {
-                                    StrategyName = strategyName,
-                                    Signal = signal,
-                                    Confidence = CurrentDiagnostics?.RegimeScore ?? 0.0,
-                                    EdgeProbability = record.Decision?.EdgeProbability
-                                };
-
-                                _tradeLogger.Log(features, decision, record.Stake, profit);
-                            }
+                            _tradeLogger.Log(features, decision, record.Stake, profit);
                         }
 
                         if (!_strategyStats.TryGetValue(strategyName, out var stats))
@@ -3838,7 +3821,7 @@ private void OnTickReceived(Tick tick)
                             _strategyStats[strategyName] = stats;
                         }
 
-                        if (profit >= 0)
+                        if (profit > 0)
                         {
                             stats.Wins++;
                             _consecutiveLosses = 0;
@@ -3855,7 +3838,7 @@ private void OnTickReceived(Tick tick)
                         if (!string.IsNullOrWhiteSpace(record.Symbol))
                         {
                             var symStats = GetOrCreateSymbolStats(record.Symbol);
-                            if (profit >= 0)
+                            if (profit > 0)
                                 symStats.Wins++;
                             else
                                 symStats.Losses++;
@@ -3933,7 +3916,7 @@ private void OnTickReceived(Tick tick)
             if (recent.Count < _rules.StrategyProbationMinTrades)
                 return;
 
-            int wins = recent.Count(t => t.Profit >= 0);
+            int wins = recent.Count(t => t.Profit > 0);
             double winRate = (double)wins / recent.Count * 100.0;
 
             bool threeLosses = recent.Take(3).All(t => t.Profit < 0);

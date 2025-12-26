@@ -507,11 +507,11 @@ namespace DerivSmartBotDesktop.Services
             _autoTrainingService?.TryQueueTraining(trades.Count);
             snapshot.TradesToday = trades.Count;
 
-            var wins = trades.Count(t => t.Profit >= 0);
+            var wins = trades.Count(t => t.Profit > 0);
             snapshot.WinRateToday = trades.Count > 0 ? (double)wins / trades.Count * 100.0 : 0;
 
             var last200 = trades.TakeLast(200).ToList();
-            var wins200 = last200.Count(t => t.Profit >= 0);
+            var wins200 = last200.Count(t => t.Profit > 0);
             snapshot.WinRate200 = last200.Count > 0 ? (double)wins200 / last200.Count * 100.0 : 0;
 
             UpdateEquitySeries(snapshot.Balance);
@@ -559,7 +559,7 @@ namespace DerivSmartBotDesktop.Services
                 snapshot.ActiveStake = lastTrade.Stake;
                 snapshot.ActiveDuration = "1t";
                 snapshot.ActiveRemaining = "-";
-                snapshot.ActiveStatus = lastTrade.Profit >= 0 ? "Won" : "Lost";
+                snapshot.ActiveStatus = lastTrade.Profit > 0 ? "Won" : "Lost";
             }
             else
             {
@@ -676,7 +676,7 @@ namespace DerivSmartBotDesktop.Services
             if (filtered.Count == 0)
                 return 0;
 
-            var wins = filtered.Count(t => t.Profit >= 0);
+            var wins = filtered.Count(t => t.Profit > 0);
             return (double)wins / filtered.Count * 100.0;
         }
 

@@ -121,7 +121,7 @@ namespace DerivSmartBotDesktop.Core
                 balance += profit;
 
                 totalTrades++;
-                if (profit >= 0) wins++; else losses++;
+                if (profit > 0) wins++; else losses++;
 
                 peak = Math.Max(peak, balance);
                 double drawdown = peak - balance;
@@ -166,8 +166,6 @@ namespace DerivSmartBotDesktop.Core
                 diff = -diff;
 
             bool win = diff > 0.0;
-            if (!win && diff == 0.0)
-                return 0.0;
 
             string contractType = decision.Signal == TradeSignal.Buy ? "CALL" : "PUT";
             double payoutMultiplier = _pricingModel.GetPayoutMultiplier(
