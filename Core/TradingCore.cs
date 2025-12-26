@@ -3161,15 +3161,6 @@ private void OnTickReceived(Tick tick)
                 return;
             }
 
-            // Warn but allow when slightly negative in warmer regimes.
-            if (expectedProfitScore < expectedWarn && MarketHeatScore >= _rules.MinMarketHeatToTrade)
-            {
-                RaiseBotEvent(
-                    $"[NEGATIVE_EXPECTED_PROFIT_WARN] Expected-profit score is {expectedProfitScore:F2} " +
-                    $"but regime heat={MarketHeatScore:F1}; proceeding cautiously.");
-            }
-
-
             if (!IsGoodTradingConditions())
             {
                 SetSkipReason("ENVIRONMENT_FILTER",
@@ -3178,8 +3169,7 @@ private void OnTickReceived(Tick tick)
                 return;
             }
 
-            SetSkipReason(null, "Trade taken. Conditions and filters satisfied.");
-            ExecuteTrade(tick, ensemble, now, entryFeatures);
+            ExecuteTrade(tick, ensemble, now, entryFeatures, expectedProfitScore, expectedWarn);
         }
 
         private bool IsWithinSession(DateTime nowLocal)
@@ -3476,7 +3466,13 @@ private void OnTickReceived(Tick tick)
             return false;
         }
 
-        private async void ExecuteTrade(Tick tick, StrategyDecision decision, DateTime now, FeatureVector? entryFeatures)
+        private async void ExecuteTrade(
+            Tick tick,
+            StrategyDecision decision,
+            DateTime now,
+            FeatureVector? entryFeatures,
+            double expectedProfitScore,
+            double expectedWarn)
         {
             double baseStake;
             double currentBalanceSnapshot;
@@ -3556,6 +3552,14 @@ private void OnTickReceived(Tick tick)
                 return;
             }
 
+            // Warn but allow when slightly negative in warmer regimes.
+            if (expectedProfitScore < expectedWarn && MarketHeatScore >= _rules.MinMarketHeatToTrade)
+            {
+                RaiseBotEvent(
+                    $"[NEGATIVE_EXPECTED_PROFIT_WARN] Expected-profit score is {expectedProfitScore:F2} " +
+                    $"but regime heat={MarketHeatScore:F1}; proceeding cautiously.");
+            }
+
             Guid tradeId;
             string dirText;
 
@@ -3590,6 +3594,8 @@ private void OnTickReceived(Tick tick)
             RaiseBotEvent(
                 $"[Ensemble] Placing {dirText} trade via {decision.StrategyName} on {tick.Symbol} " +
                 $"(stake={stake:F2}, conf={decision.Confidence:F2}, heat={MarketHeatScore:F1}, dur={decision.Duration}{decision.DurationUnit})");
+
+            SetSkipReason(null, "Trade taken. Conditions and filters satisfied.");
 
             if (ForwardTestEnabled)
             {
