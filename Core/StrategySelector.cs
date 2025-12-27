@@ -85,8 +85,9 @@ namespace DerivSmartBotDesktop.Core
                     }
                 }
 
-                // Regime-aware biasing using current diagnostics + strategy name hints.
+                // Regime/market-aware biasing using current diagnostics + strategy profile.
                 score += StrategySelectionScoring.ComputeRegimeBias(diagnostics, decision);
+                score += StrategySelectionScoring.ComputeMarketFitScore(diagnostics, decision, marketHeatScore);
 
                 if (score > bestScore)
                 {
@@ -550,8 +551,9 @@ namespace DerivSmartBotDesktop.Core
                         }
                     }
 
-                    // Regime/heat-aware biasing; keeps ML aligned with current tape conditions.
+                    // Regime/market-aware biasing; keeps ML aligned with current tape conditions.
                     score += StrategySelectionScoring.ComputeRegimeBias(diagnostics, decision);
+                    score += StrategySelectionScoring.ComputeMarketFitScore(diagnostics, decision, marketHeatScore);
 
                     if (score > bestScore)
                     {
@@ -579,6 +581,55 @@ namespace DerivSmartBotDesktop.Core
 
     internal static class StrategySelectionScoring
     {
+        private sealed class StrategyMarketProfile
+        {
+            public string[] Keywords { get; init; } = Array.Empty<string>();
+            public MarketRegime[] PreferredRegimes { get; init; } = Array.Empty<MarketRegime>();
+            public double MinHeat { get; init; }
+            public double MaxHeat { get; init; }
+            public double MinVol { get; init; }
+            public double MaxVol { get; init; }
+            public double MatchBonus { get; init; }
+            public double MismatchPenalty { get; init; }
+        }
+
+        private static readonly StrategyMarketProfile[] MarketProfiles =
+        {
+            new StrategyMarketProfile
+            {
+                Keywords = new[] { "trend", "breakout", "momentum", "bos", "pullback" },
+                PreferredRegimes = new[] { MarketRegime.TrendingUp, MarketRegime.TrendingDown },
+                MinHeat = 45.0,
+                MaxHeat = 85.0,
+                MinVol = 0.03,
+                MaxVol = 1.5,
+                MatchBonus = 14.0,
+                MismatchPenalty = 10.0
+            },
+            new StrategyMarketProfile
+            {
+                Keywords = new[] { "range", "mean", "reversion" },
+                PreferredRegimes = new[] { MarketRegime.RangingLowVol, MarketRegime.RangingHighVol },
+                MinHeat = 35.0,
+                MaxHeat = 75.0,
+                MinVol = 0.01,
+                MaxVol = 0.8,
+                MatchBonus = 12.0,
+                MismatchPenalty = 9.0
+            },
+            new StrategyMarketProfile
+            {
+                Keywords = new[] { "scalp", "scalping" },
+                PreferredRegimes = new[] { MarketRegime.VolatileChoppy },
+                MinHeat = 50.0,
+                MaxHeat = 95.0,
+                MinVol = 0.05,
+                MaxVol = 2.5,
+                MatchBonus = 10.0,
+                MismatchPenalty = 8.0
+            }
+        };
+
         /// <summary>
         /// Provides a small regime-aware bias to nudge strategy selection toward
         /// approaches that fit the current tape. This is intentionally lightweight
@@ -634,6 +685,59 @@ namespace DerivSmartBotDesktop.Core
             }
 
             return Math.Clamp(bias, -20.0, 20.0);
+        }
+
+        public static double ComputeMarketFitScore(
+            MarketDiagnostics diagnostics,
+            StrategyDecision decision,
+            double marketHeatScore)
+        {
+            if (diagnostics == null || decision == null)
+                return 0.0;
+
+            var profile = ResolveProfile(decision.StrategyName);
+            if (profile == null)
+                return 0.0;
+
+            double score = 0.0;
+            if (profile.PreferredRegimes.Contains(diagnostics.Regime))
+                score += profile.MatchBonus;
+            else
+                score -= profile.MismatchPenalty;
+
+            if (diagnostics.Volatility.HasValue)
+            {
+                double vol = diagnostics.Volatility.Value;
+                if (vol < profile.MinVol || vol > profile.MaxVol)
+                    score -= 6.0;
+                else
+                    score += 2.0;
+            }
+
+            if (marketHeatScore < profile.MinHeat || marketHeatScore > profile.MaxHeat)
+                score -= 5.0;
+            else
+                score += 2.0;
+
+            return Math.Clamp(score, -20.0, 20.0);
+        }
+
+        private static StrategyMarketProfile? ResolveProfile(string? strategyName)
+        {
+            if (string.IsNullOrWhiteSpace(strategyName))
+                return null;
+
+            string lname = strategyName.ToLowerInvariant();
+            foreach (var profile in MarketProfiles)
+            {
+                foreach (var keyword in profile.Keywords)
+                {
+                    if (lname.Contains(keyword))
+                        return profile;
+                }
+            }
+
+            return null;
         }
     }
 }
