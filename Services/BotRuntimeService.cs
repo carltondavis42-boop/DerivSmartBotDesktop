@@ -101,36 +101,7 @@ namespace DerivSmartBotDesktop.Services
 
             var riskManager = new RiskManager(profileCfg.Risk);
 
-            var scalping = new ScalpingStrategy();
-            var momentum = new MomentumStrategy();
-            var range = new RangeTradingStrategy();
-            var breakout = new BreakoutStrategy();
-            var smc = new SmartMoneyConceptStrategy();
-            var pa = new AdvancedPriceActionStrategy();
-            var supplyDemand = new SupplyDemandPullbackStrategy(timeframeMinutes: 30);
-
-            var filteredRange = new VolatilityFilteredStrategy(
-                range, "RangeLowVol",
-                minVol: null,
-                maxVol: 0.5,
-                trendThreshold: 0.0);
-
-            var filteredBreakout = new VolatilityFilteredStrategy(
-                breakout, "TrendBreakout",
-                minVol: 0.2,
-                maxVol: null,
-                trendThreshold: 0.0005);
-
-            var strategies = new List<ITradingStrategy>
-            {
-                scalping,
-                momentum,
-                filteredBreakout,
-                filteredRange,
-                smc,
-                pa,
-                supplyDemand
-            };
+            var strategies = BuildStrategiesForProfile(_currentProfile);
 
             var featureExtractor = new SimpleFeatureExtractor();
             var tradeLogger = new CsvTradeDataLogger(logDir);
@@ -302,6 +273,7 @@ namespace DerivSmartBotDesktop.Services
             _riskSettings = cfg.Risk;
             _botRules = cfg.Rules;
             _controller?.UpdateConfigs(cfg.Risk, cfg.Rules);
+            _controller?.UpdateStrategies(BuildStrategiesForProfile(profile));
         }
 
         public void SetAutoStart(bool enabled)
@@ -460,6 +432,48 @@ namespace DerivSmartBotDesktop.Services
                     }
                 }
             });
+        }
+
+        private static List<ITradingStrategy> BuildStrategiesForProfile(BotProfile profile)
+        {
+            if (profile == BotProfile.HighQuality)
+            {
+                return new List<ITradingStrategy>
+                {
+                    new HtfPullbackBosStrategy()
+                };
+            }
+
+            var scalping = new ScalpingStrategy();
+            var momentum = new MomentumStrategy();
+            var range = new RangeTradingStrategy();
+            var breakout = new BreakoutStrategy();
+            var smc = new SmartMoneyConceptStrategy();
+            var pa = new AdvancedPriceActionStrategy();
+            var supplyDemand = new SupplyDemandPullbackStrategy(timeframeMinutes: 30);
+
+            var filteredRange = new VolatilityFilteredStrategy(
+                range, "RangeLowVol",
+                minVol: null,
+                maxVol: 0.5,
+                trendThreshold: 0.0);
+
+            var filteredBreakout = new VolatilityFilteredStrategy(
+                breakout, "TrendBreakout",
+                minVol: 0.2,
+                maxVol: null,
+                trendThreshold: 0.0005);
+
+            return new List<ITradingStrategy>
+            {
+                scalping,
+                momentum,
+                filteredBreakout,
+                filteredRange,
+                smc,
+                pa,
+                supplyDemand
+            };
         }
 
         private void PublishSnapshot()

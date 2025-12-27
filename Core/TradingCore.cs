@@ -2721,6 +2721,20 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
             RaiseBotEvent("Risk and rules updated.");
         }
 
+        public void UpdateStrategies(IEnumerable<ITradingStrategy> strategies)
+        {
+            if (strategies == null)
+                return;
+
+            lock (_stateLock)
+            {
+                _strategies.Clear();
+                _strategies.AddRange(strategies.Where(s => s != null));
+            }
+
+            RaiseBotEvent("Strategies updated.");
+        }
+
         private void OnBalanceUpdated(double bal)
         {
             if (_sessionStartBalance <= 0)
