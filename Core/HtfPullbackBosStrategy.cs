@@ -23,6 +23,10 @@ namespace DerivSmartBotDesktop.Core
         private readonly double _atrStopMult;
         private readonly double _minStopAtr;
         private readonly double _maxStopAtr;
+        private readonly int _minH1Bars;
+        private readonly int _minM15Bars;
+        private readonly double _bosBufferAtr;
+        private readonly double _minBodyPct;
         private readonly int _cooldownMinutes;
         private readonly int _emaSlopeLookback;
         private readonly int _m15CrossLookback;
@@ -124,13 +128,17 @@ namespace DerivSmartBotDesktop.Core
             int durationMinutes = 5,
             int pivotLookback = 2,
             int atrPeriod = 14,
-            double gapMin = 0.30,
+            double gapMin = 0.25,
             double atrStopMult = 1.2,
             double minStopAtr = 0.6,
             double maxStopAtr = 2.5,
             int cooldownMinutes = 15,
             int emaSlopeLookback = 5,
-            int m15CrossLookback = 10)
+            int m15CrossLookback = 10,
+            int minH1Bars = 30,
+            int minM15Bars = 40,
+            double bosBufferAtr = 0.03,
+            double minBodyPct = 0.4)
         {
             _durationMinutes = Math.Max(1, durationMinutes);
             _pivotLookback = Math.Max(1, pivotLookback);
@@ -142,6 +150,10 @@ namespace DerivSmartBotDesktop.Core
             _cooldownMinutes = Math.Max(0, cooldownMinutes);
             _emaSlopeLookback = Math.Max(3, emaSlopeLookback);
             _m15CrossLookback = Math.Max(5, m15CrossLookback);
+            _minH1Bars = Math.Max(10, minH1Bars);
+            _minM15Bars = Math.Max(20, minM15Bars);
+            _bosBufferAtr = Math.Max(0.0, bosBufferAtr);
+            _minBodyPct = Math.Clamp(minBodyPct, 0.1, 0.9);
         }
 
         public TradeSignal OnNewTick(Tick tick, StrategyContext context)
@@ -183,7 +195,7 @@ namespace DerivSmartBotDesktop.Core
             if (lastM5 == null)
                 return NoSignal();
 
-            double bosBuffer = 0.05 * atr;
+            double bosBuffer = _bosBufferAtr * atr;
             double bodyPct = ComputeBodyPct(lastM5);
 
             if (state.Bias == BiasDirection.Long)
@@ -192,7 +204,7 @@ namespace DerivSmartBotDesktop.Core
                 if (pivot == null)
                     return NoSignal();
 
-                if (lastM5.Close > pivot.Price + bosBuffer && bodyPct >= 0.5)
+                if (lastM5.Close > pivot.Price + bosBuffer && bodyPct >= _minBodyPct)
                 {
                     if (!StopDistanceOk(atr))
                         return NoSignal();
@@ -207,7 +219,7 @@ namespace DerivSmartBotDesktop.Core
                 if (pivot == null)
                     return NoSignal();
 
-                if (lastM5.Close < pivot.Price - bosBuffer && bodyPct >= 0.5)
+                if (lastM5.Close < pivot.Price - bosBuffer && bodyPct >= _minBodyPct)
                 {
                     if (!StopDistanceOk(atr))
                         return NoSignal();
@@ -293,7 +305,7 @@ namespace DerivSmartBotDesktop.Core
                 // no-op, EMA200 stored in object
             }
 
-            if (!state.H1Ema50.IsReady(50) || !state.H1Ema200.IsReady(200))
+            if (state.H1Bars.Count < _minH1Bars)
                 return;
 
             double ema50Val = state.H1Ema50.Value ?? 0.0;
@@ -343,7 +355,7 @@ namespace DerivSmartBotDesktop.Core
                 return;
             }
 
-            if (!state.M15Ema50.IsReady(50) || !state.M15Ema200.IsReady(200))
+            if (state.M15Bars.Count < _minM15Bars)
                 return;
 
             var atr = ComputeAtr(state.M15Bars, _atrPeriod);
