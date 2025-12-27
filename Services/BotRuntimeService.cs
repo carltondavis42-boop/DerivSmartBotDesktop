@@ -436,14 +436,6 @@ namespace DerivSmartBotDesktop.Services
 
         private static List<ITradingStrategy> BuildStrategiesForProfile(BotProfile profile)
         {
-            if (profile == BotProfile.HighQuality)
-            {
-                return new List<ITradingStrategy>
-                {
-                    new HtfPullbackBosStrategy()
-                };
-            }
-
             var scalping = new ScalpingStrategy();
             var momentum = new MomentumStrategy();
             var range = new RangeTradingStrategy();
@@ -464,7 +456,7 @@ namespace DerivSmartBotDesktop.Services
                 maxVol: null,
                 trendThreshold: 0.0005);
 
-            return new List<ITradingStrategy>
+            var strategies = new List<ITradingStrategy>
             {
                 scalping,
                 momentum,
@@ -474,6 +466,11 @@ namespace DerivSmartBotDesktop.Services
                 pa,
                 supplyDemand
             };
+
+            if (profile == BotProfile.HighQuality)
+                strategies.Insert(0, new HtfPullbackBosStrategy());
+
+            return strategies;
         }
 
         private void PublishSnapshot()
