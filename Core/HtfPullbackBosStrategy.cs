@@ -128,17 +128,17 @@ namespace DerivSmartBotDesktop.Core
             int durationMinutes = 5,
             int pivotLookback = 2,
             int atrPeriod = 14,
-            double gapMin = 0.25,
+            double gapMin = 0.20,
             double atrStopMult = 1.2,
             double minStopAtr = 0.6,
             double maxStopAtr = 2.5,
-            int cooldownMinutes = 15,
+            int cooldownMinutes = 5,
             int emaSlopeLookback = 5,
             int m15CrossLookback = 10,
-            int minH1Bars = 30,
-            int minM15Bars = 40,
-            double bosBufferAtr = 0.03,
-            double minBodyPct = 0.4)
+            int minH1Bars = 10,
+            int minM15Bars = 20,
+            double bosBufferAtr = 0.02,
+            double minBodyPct = 0.3)
         {
             _durationMinutes = Math.Max(1, durationMinutes);
             _pivotLookback = Math.Max(1, pivotLookback);
@@ -455,7 +455,7 @@ namespace DerivSmartBotDesktop.Core
                 return false;
 
             int crosses = CountEmaCrosses(state.M15Bars, ema50, _m15CrossLookback);
-            return crosses <= 3;
+            return crosses <= 5;
         }
 
         private bool PullbackToValueOk(SymbolState state, double atr)
@@ -497,7 +497,7 @@ namespace DerivSmartBotDesktop.Core
             double rangeLast = Math.Max(1e-6, last.High - last.Low);
             double bodyPct = bodyLast / rangeLast;
 
-            bool wicky = bodyPct <= 0.6;
+            bool wicky = bodyPct <= 0.75;
             bool twoCandle;
             if (bias == BiasDirection.Short)
             {
