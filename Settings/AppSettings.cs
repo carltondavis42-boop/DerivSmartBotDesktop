@@ -12,6 +12,8 @@
         public double DailyDrawdownPercent { get; set; } = -1;
         public double MaxDailyLossAmount { get; set; } = -1;
         public int MaxConsecutiveLosses { get; set; } = -1;
+        public int MaxTradesPerHour { get; set; } = -1;
+        public int MaxOpenTrades { get; set; } = -1;
         public int TradeCooldownSeconds { get; set; } = -1;
         public int MinSamplesPerStrategy { get; set; } = 50;
         public double MinMarketHeatToTrade { get; set; } = -1;

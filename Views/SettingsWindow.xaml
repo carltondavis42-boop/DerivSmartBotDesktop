@@ -73,6 +73,10 @@
                     <TextBox Text="{Binding MaxDailyLossAmount, UpdateSourceTrigger=PropertyChanged}"/>
                     <TextBlock Text="Max consecutive losses" Margin="0,8,0,4"/>
                     <TextBox Text="{Binding MaxConsecutiveLosses, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Max trades per hour" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding MaxTradesPerHour, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Max open trades" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding MaxOpenTrades, UpdateSourceTrigger=PropertyChanged}"/>
                     <TextBlock Text="Trade cooldown (seconds)" Margin="0,8,0,4"/>
                     <TextBox Text="{Binding TradeCooldownSeconds, UpdateSourceTrigger=PropertyChanged}"/>
                     <TextBlock Text="Min samples per strategy" Margin="0,8,0,4"/>

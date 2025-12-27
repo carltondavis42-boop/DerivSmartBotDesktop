@@ -35,7 +35,7 @@ namespace DerivSmartBotDesktop.Services
         private DateTime _lastSnapshot = DateTime.MinValue;
         private RiskSettings? _riskSettings;
         private BotRules? _botRules;
-        private BotProfile _currentProfile = BotProfile.Balanced;
+        private BotProfile _currentProfile = BotProfile.HighQuality;
         private bool _autoStartEnabled = true;
         private bool _autoRotateEnabled = true;
         private bool _relaxEnvFilters;
@@ -352,6 +352,10 @@ namespace DerivSmartBotDesktop.Services
                 risk.MaxDailyLossAmount = _settings.MaxDailyLossAmount;
             if (_settings.MaxConsecutiveLosses > 0)
                 risk.MaxConsecutiveLosses = _settings.MaxConsecutiveLosses;
+            if (_settings.MaxTradesPerHour > 0)
+                rules.MaxTradesPerHour = _settings.MaxTradesPerHour;
+            if (_settings.MaxOpenTrades > 0)
+                rules.MaxOpenTrades = _settings.MaxOpenTrades;
             if (_settings.TradeCooldownSeconds > 0)
                 rules.TradeCooldown = TimeSpan.FromSeconds(_settings.TradeCooldownSeconds);
             if (_settings.MinMarketHeatToTrade >= 0)

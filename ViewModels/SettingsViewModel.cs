@@ -19,6 +19,8 @@ namespace DerivSmartBotDesktop.ViewModels
         private double _dailyDrawdownPercent;
         private double _maxDailyLossAmount;
         private int _maxConsecutiveLosses;
+        private int _maxTradesPerHour;
+        private int _maxOpenTrades;
         private int _tradeCooldownSeconds;
         private int _minSamplesPerStrategy;
         private double _minMarketHeatToTrade;
@@ -67,6 +69,8 @@ namespace DerivSmartBotDesktop.ViewModels
             DailyDrawdownPercent = _initial.DailyDrawdownPercent;
             MaxDailyLossAmount = _initial.MaxDailyLossAmount;
             MaxConsecutiveLosses = _initial.MaxConsecutiveLosses;
+            MaxTradesPerHour = _initial.MaxTradesPerHour;
+            MaxOpenTrades = _initial.MaxOpenTrades;
             TradeCooldownSeconds = _initial.TradeCooldownSeconds;
             MinSamplesPerStrategy = _initial.MinSamplesPerStrategy;
             MinMarketHeatToTrade = _initial.MinMarketHeatToTrade;
@@ -149,6 +153,18 @@ namespace DerivSmartBotDesktop.ViewModels
         {
             get => _maxConsecutiveLosses;
             set { _maxConsecutiveLosses = value; OnPropertyChanged(); }
+        }
+
+        public int MaxTradesPerHour
+        {
+            get => _maxTradesPerHour;
+            set { _maxTradesPerHour = value; OnPropertyChanged(); }
+        }
+
+        public int MaxOpenTrades
+        {
+            get => _maxOpenTrades;
+            set { _maxOpenTrades = value; OnPropertyChanged(); }
         }
 
         public int TradeCooldownSeconds
@@ -368,6 +384,8 @@ namespace DerivSmartBotDesktop.ViewModels
                 DailyDrawdownPercent = DailyDrawdownPercent,
                 MaxDailyLossAmount = MaxDailyLossAmount,
                 MaxConsecutiveLosses = MaxConsecutiveLosses,
+                MaxTradesPerHour = MaxTradesPerHour,
+                MaxOpenTrades = MaxOpenTrades,
                 TradeCooldownSeconds = TradeCooldownSeconds,
                 MinSamplesPerStrategy = MinSamplesPerStrategy,
                 MinMarketHeatToTrade = MinMarketHeatToTrade,

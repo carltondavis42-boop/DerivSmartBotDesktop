@@ -17,6 +17,8 @@ namespace DerivSmartBotDesktop.Settings
             public double DailyDrawdownPercent { get; set; } = -1;
             public double MaxDailyLossAmount { get; set; } = -1;
             public int MaxConsecutiveLosses { get; set; } = -1;
+            public int MaxTradesPerHour { get; set; } = -1;
+            public int MaxOpenTrades { get; set; } = -1;
             public int TradeCooldownSeconds { get; set; } = -1;
             public int MinSamplesPerStrategy { get; set; } = 50;
             public double MinMarketHeatToTrade { get; set; } = -1;
@@ -86,6 +88,8 @@ namespace DerivSmartBotDesktop.Settings
                     DailyDrawdownPercent = store.DailyDrawdownPercent,
                     MaxDailyLossAmount = store.MaxDailyLossAmount,
                     MaxConsecutiveLosses = store.MaxConsecutiveLosses,
+                    MaxTradesPerHour = store.MaxTradesPerHour,
+                    MaxOpenTrades = store.MaxOpenTrades,
                     TradeCooldownSeconds = store.TradeCooldownSeconds,
                     MinSamplesPerStrategy = store.MinSamplesPerStrategy <= 0
                         ? new AppSettings().MinSamplesPerStrategy
@@ -148,6 +152,8 @@ namespace DerivSmartBotDesktop.Settings
                     DailyDrawdownPercent = settings.DailyDrawdownPercent,
                     MaxDailyLossAmount = settings.MaxDailyLossAmount,
                     MaxConsecutiveLosses = settings.MaxConsecutiveLosses,
+                    MaxTradesPerHour = settings.MaxTradesPerHour,
+                    MaxOpenTrades = settings.MaxOpenTrades,
                     TradeCooldownSeconds = settings.TradeCooldownSeconds,
                     MinSamplesPerStrategy = settings.MinSamplesPerStrategy,
                     MinMarketHeatToTrade = settings.MinMarketHeatToTrade,

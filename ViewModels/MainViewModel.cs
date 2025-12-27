@@ -48,7 +48,7 @@ namespace DerivSmartBotDesktop.ViewModels
         private bool _autoStartEnabled = true;
         private bool _autoRotateEnabled = true;
         private bool _relaxEnvFiltersEnabled;
-        private BotProfile _selectedProfile = BotProfile.Balanced;
+        private BotProfile _selectedProfile = BotProfile.HighQuality;
 
         public MainViewModel(BotRuntimeService runtimeService, ThemeService themeService, ToastService toastService, ExportService exportService)
         {
@@ -291,7 +291,13 @@ namespace DerivSmartBotDesktop.ViewModels
             }
         }
 
-        public BotProfile[] ProfileOptions => new[] { BotProfile.Conservative, BotProfile.Balanced, BotProfile.Aggressive };
+        public BotProfile[] ProfileOptions => new[]
+        {
+            BotProfile.HighQuality,
+            BotProfile.Conservative,
+            BotProfile.Balanced,
+            BotProfile.Aggressive
+        };
 
         public BotProfile SelectedProfile
         {

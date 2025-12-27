@@ -1846,6 +1846,7 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
 
     public enum BotProfile
     {
+        HighQuality,
         Conservative,
         Balanced,
         Aggressive
@@ -1860,6 +1861,50 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
         {
             switch (profile)
             {
+                case BotProfile.HighQuality:
+                    return new BotProfileConfig
+                    {
+                        Risk = new RiskSettings
+                        {
+                            RiskPerTradeFraction = 0.005,
+                            MinStake = 0.35,
+                            MaxStake = 15.0,
+                            MaxStakeAsBalanceFraction = 0.02,
+                            MaxDailyDrawdownFraction = 0.10,
+                            MaxDailyDrawdownPercent = 10.0,
+                            MaxConsecutiveLosses = 5,
+                            MinWinRatePercentToContinue = 52,
+                            MinTradesBeforeWinRateCheck = 40,
+                            MinConfidenceForDynamicStake = 0.70,
+                            MinRegimeScoreForDynamicStake = 0.65,
+                            MinHeatForDynamicStake = 50.0
+                        },
+                        Rules = new BotRules
+                        {
+                            TradeCooldown = TimeSpan.FromSeconds(300),
+                            MaxTradesPerHour = 10,
+                            MaxOpenTrades = 1,
+                            MinMarketHeatToTrade = 45.0,
+                            MaxMarketHeatToTrade = 80.0,
+                            MinRegimeScoreToTrade = 0.65,
+                            MinEnsembleConfidence = 0.70,
+                            ExpectedProfitBlockThreshold = -0.02,
+                            ExpectedProfitWarnThreshold = 0.03,
+                            MinTradesBeforeMl = 100,
+                            MinVolatilityToTrade = 0.03,
+                            MaxVolatilityToTrade = 1.2,
+                            LossCooldownMultiplierSeconds = 3,
+                            MaxLossCooldownSeconds = 300,
+                            StrategyProbationMinTrades = 30,
+                            StrategyProbationWinRate = 52.0,
+                            StrategyProbationBlockMinutes = 60,
+                            StrategyProbationLossBlockMinutes = 30,
+                            HighHeatRotationThreshold = 70.0,
+                            HighHeatRotationIntervalSeconds = 90,
+                            RotationScoreDelta = 12.0,
+                            RotationScoreDeltaHighHeat = 4.0
+                        }
+                    };
                 case BotProfile.Conservative:
                     return new BotProfileConfig
                     {
