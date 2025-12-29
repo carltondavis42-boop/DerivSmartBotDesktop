@@ -9,6 +9,7 @@ using DerivSmartBotDesktop.Core;
 using DerivSmartBotDesktop.Deriv;
 using DerivSmartBotDesktop.Settings;
 using DerivSmartBotDesktop.ViewModels;
+using System.Text.Json;
 
 namespace DerivSmartBotDesktop.Services
 {
@@ -171,6 +172,8 @@ namespace DerivSmartBotDesktop.Services
             controller.SetAutoSymbolMode(_autoRotateEnabled ? AutoSymbolMode.Auto : AutoSymbolMode.Manual);
             _ = SubscribeSymbolsAsync(watchlist);
 
+            PersistEffectiveConfig(profileCfg, watchlist);
+
             _snapshotTimer ??= new Timer(_ => PublishSnapshot(), null, 0, 300);
         }
 
@@ -274,6 +277,7 @@ namespace DerivSmartBotDesktop.Services
             _botRules = cfg.Rules;
             _controller?.UpdateConfigs(cfg.Risk, cfg.Rules);
             _controller?.UpdateStrategies(BuildStrategiesForProfile(profile));
+            PersistEffectiveConfig(cfg, _controller?.SymbolsToWatch?.ToList() ?? new List<string>());
         }
 
         public void SetAutoStart(bool enabled)
@@ -374,6 +378,10 @@ namespace DerivSmartBotDesktop.Services
                 risk.MinRegimeScoreForDynamicStake = _settings.MinRegimeScoreForDynamicStake;
             if (_settings.MinHeatForDynamicStake > 0)
                 risk.MinHeatForDynamicStake = _settings.MinHeatForDynamicStake;
+            if (_settings.EnableProposalEvGate)
+                rules.EnableProposalEvGate = true;
+            if (_settings.MinExpectedValue >= 0)
+                rules.MinExpectedValue = _settings.MinExpectedValue;
         }
 
         private void OnBotEvent(string message)
@@ -436,6 +444,42 @@ namespace DerivSmartBotDesktop.Services
 
         private static List<ITradingStrategy> BuildStrategiesForProfile(BotProfile profile)
         {
+            var trendProfile = new StrategyMarketProfile
+            {
+                Name = "Trend",
+                PreferredRegimes = new[] { MarketRegime.TrendingUp, MarketRegime.TrendingDown },
+                MinHeat = 45.0,
+                MaxHeat = 90.0,
+                MinVol = 0.03,
+                MaxVol = 1.5,
+                MatchBonus = 14.0,
+                MismatchPenalty = 10.0
+            };
+
+            var rangeProfile = new StrategyMarketProfile
+            {
+                Name = "Range",
+                PreferredRegimes = new[] { MarketRegime.RangingLowVol, MarketRegime.RangingHighVol },
+                MinHeat = 35.0,
+                MaxHeat = 75.0,
+                MinVol = 0.01,
+                MaxVol = 0.8,
+                MatchBonus = 12.0,
+                MismatchPenalty = 9.0
+            };
+
+            var scalpProfile = new StrategyMarketProfile
+            {
+                Name = "Scalp",
+                PreferredRegimes = new[] { MarketRegime.VolatileChoppy },
+                MinHeat = 50.0,
+                MaxHeat = 95.0,
+                MinVol = 0.05,
+                MaxVol = 2.5,
+                MatchBonus = 10.0,
+                MismatchPenalty = 8.0
+            };
+
             var scalping = new ScalpingStrategy();
             var momentum = new MomentumStrategy();
             var range = new RangeTradingStrategy();
@@ -469,6 +513,25 @@ namespace DerivSmartBotDesktop.Services
 
             if (profile == BotProfile.HighQuality)
                 strategies.Insert(0, new HtfPullbackBosStrategy());
+
+            foreach (var strategy in strategies)
+            {
+                if (strategy == null) continue;
+                if (strategy is HtfPullbackBosStrategy)
+                    StrategyTagRegistry.Register(strategy.Name, trendProfile);
+                else if (strategy is SupplyDemandPullbackStrategy)
+                    StrategyTagRegistry.Register(strategy.Name, trendProfile);
+                else if (strategy is MomentumStrategy)
+                    StrategyTagRegistry.Register(strategy.Name, trendProfile);
+                else if (strategy is BreakoutStrategy || strategy.Name.Contains("Breakout", StringComparison.OrdinalIgnoreCase))
+                    StrategyTagRegistry.Register(strategy.Name, trendProfile);
+                else if (strategy is RangeTradingStrategy || strategy.Name.Contains("Range", StringComparison.OrdinalIgnoreCase))
+                    StrategyTagRegistry.Register(strategy.Name, rangeProfile);
+                else if (strategy is ScalpingStrategy)
+                    StrategyTagRegistry.Register(strategy.Name, scalpProfile);
+                else
+                    StrategyTagRegistry.Register(strategy.Name, trendProfile);
+            }
 
             return strategies;
         }
@@ -584,6 +647,8 @@ namespace DerivSmartBotDesktop.Services
                 snapshot.ActiveRemaining = "-";
                 snapshot.ActiveStatus = "-";
             }
+
+            snapshot.StrategyDiagnostics = _controller?.GetStrategyDiagnostics(_controller?.ActiveSymbol) ?? "-";
 
             return snapshot;
         }
@@ -747,6 +812,7 @@ namespace DerivSmartBotDesktop.Services
                 LastModelUpdate = _lastModelLoadUtc == DateTime.MinValue
                     ? "-"
                     : _lastModelLoadUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"),
+                StrategyDiagnostics = "HTF_BOS gate=DATA_WARMUP",
                 Watchlist = settingsWatchlist,
                 Trades = BuildMockTrades(),
                 Strategies = BuildMockStrategies(),
@@ -782,6 +848,74 @@ namespace DerivSmartBotDesktop.Services
                 latest = new[] { latest, File.GetLastWriteTimeUtc(regimePath) }.Max();
 
             return latest;
+        }
+
+        private void PersistEffectiveConfig(BotProfileConfig profileCfg, List<string> watchlist)
+        {
+            try
+            {
+                var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                var logDir = Path.Combine(baseDir, "Data", "Logs");
+                Directory.CreateDirectory(logDir);
+
+                var snapshot = new EffectiveConfigSnapshot
+                {
+                    TimestampUtc = DateTime.UtcNow,
+                    Profile = _currentProfile.ToString(),
+                    Risk = profileCfg.Risk,
+                    Rules = profileCfg.Rules,
+                    Watchlist = watchlist ?? new List<string>(),
+                    Settings = new AppSettingsSnapshot
+                    {
+                        Symbol = _settings.Symbol ?? string.Empty,
+                        WatchlistCsv = _settings.WatchlistCsv ?? string.Empty,
+                        TradeLogDirectory = _settings.TradeLogDirectory ?? string.Empty,
+                        DailyDrawdownPercent = _settings.DailyDrawdownPercent,
+                        MaxDailyLossAmount = _settings.MaxDailyLossAmount,
+                        MaxConsecutiveLosses = _settings.MaxConsecutiveLosses,
+                        MaxTradesPerHour = _settings.MaxTradesPerHour,
+                        MaxOpenTrades = _settings.MaxOpenTrades,
+                        TradeCooldownSeconds = _settings.TradeCooldownSeconds,
+                        MinSamplesPerStrategy = _settings.MinSamplesPerStrategy,
+                        MinMarketHeatToTrade = _settings.MinMarketHeatToTrade,
+                        MaxMarketHeatToTrade = _settings.MaxMarketHeatToTrade,
+                        MinRegimeScoreToTrade = _settings.MinRegimeScoreToTrade,
+                        MinEnsembleConfidence = _settings.MinEnsembleConfidence,
+                        ExpectedProfitBlockThreshold = _settings.ExpectedProfitBlockThreshold,
+                        ExpectedProfitWarnThreshold = _settings.ExpectedProfitWarnThreshold,
+                        MinVolatilityToTrade = _settings.MinVolatilityToTrade,
+                        MaxVolatilityToTrade = _settings.MaxVolatilityToTrade,
+                        LossCooldownMultiplierSeconds = _settings.LossCooldownMultiplierSeconds,
+                        MaxLossCooldownSeconds = _settings.MaxLossCooldownSeconds,
+                        MinTradesBeforeMl = _settings.MinTradesBeforeMl,
+                        StrategyProbationMinTrades = _settings.StrategyProbationMinTrades,
+                        StrategyProbationWinRate = _settings.StrategyProbationWinRate,
+                        StrategyProbationBlockMinutes = _settings.StrategyProbationBlockMinutes,
+                        StrategyProbationLossBlockMinutes = _settings.StrategyProbationLossBlockMinutes,
+                        HighHeatRotationThreshold = _settings.HighHeatRotationThreshold,
+                        HighHeatRotationIntervalSeconds = _settings.HighHeatRotationIntervalSeconds,
+                        RotationScoreDelta = _settings.RotationScoreDelta,
+                        RotationScoreDeltaHighHeat = _settings.RotationScoreDeltaHighHeat,
+                        MinConfidenceForDynamicStake = _settings.MinConfidenceForDynamicStake,
+                        MinRegimeScoreForDynamicStake = _settings.MinRegimeScoreForDynamicStake,
+                        MinHeatForDynamicStake = _settings.MinHeatForDynamicStake,
+                        EnableProposalEvGate = _settings.EnableProposalEvGate,
+                        MinExpectedValue = _settings.MinExpectedValue,
+                        IsDemo = _settings.IsDemo,
+                        ForwardTestEnabled = _settings.ForwardTestEnabled,
+                        RelaxEnvironmentForTesting = _settings.RelaxEnvironmentForTesting
+                    }
+                };
+
+                var fileName = $"session-config-{DateTime.UtcNow:yyyyMMdd_HHmmss}.json";
+                var path = Path.Combine(logDir, fileName);
+                var json = JsonSerializer.Serialize(snapshot, new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(path, json);
+            }
+            catch
+            {
+                // ignore config snapshot failures
+            }
         }
 
         private void TryReloadModelsIfUpdated()

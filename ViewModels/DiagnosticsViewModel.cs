@@ -10,6 +10,7 @@ namespace DerivSmartBotDesktop.ViewModels
         private string _autoTrainStatus = string.Empty;
         private string _lastModelUpdate = string.Empty;
         private bool _autoTrainAvailable;
+        private string _strategyDiagnostics = string.Empty;
 
         public string ConnectionStatus
         {
@@ -57,6 +58,12 @@ namespace DerivSmartBotDesktop.ViewModels
         {
             get => _autoTrainAvailable;
             set { _autoTrainAvailable = value; OnPropertyChanged(); }
+        }
+
+        public string StrategyDiagnostics
+        {
+            get => _strategyDiagnostics;
+            set { _strategyDiagnostics = value; OnPropertyChanged(); }
         }
     }
 }

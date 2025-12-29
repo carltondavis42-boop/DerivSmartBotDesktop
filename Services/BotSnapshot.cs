@@ -27,6 +27,7 @@ namespace DerivSmartBotDesktop.Services
         public string ActiveDuration { get; set; } = string.Empty;
         public string ActiveRemaining { get; set; } = string.Empty;
         public string ActiveStatus { get; set; } = string.Empty;
+        public string StrategyDiagnostics { get; set; } = string.Empty;
         public string RiskState { get; set; } = string.Empty;
         public double DailyLossLimit { get; set; }
         public int MaxConsecutiveLosses { get; set; }

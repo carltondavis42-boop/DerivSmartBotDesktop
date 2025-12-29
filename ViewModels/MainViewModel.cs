@@ -423,6 +423,7 @@ namespace DerivSmartBotDesktop.ViewModels
             Diagnostics.AutoTrainStatus = snapshot.AutoTrainStatus;
             Diagnostics.LastModelUpdate = snapshot.LastModelUpdate;
             Diagnostics.AutoTrainAvailable = snapshot.AutoTrainAvailable;
+            Diagnostics.StrategyDiagnostics = snapshot.StrategyDiagnostics;
 
             SyncKpis(snapshot);
             UpdateSeries(_equitySeries, snapshot.EquitySeries);

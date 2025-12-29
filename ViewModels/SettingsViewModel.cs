@@ -45,6 +45,8 @@ namespace DerivSmartBotDesktop.ViewModels
         private double _minConfidenceForDynamicStake;
         private double _minRegimeScoreForDynamicStake;
         private double _minHeatForDynamicStake;
+        private bool _enableProposalEvGate;
+        private double _minExpectedValue;
         private bool _isDemo;
         private bool _forwardTestEnabled;
         private bool _relaxEnvironmentForTesting;
@@ -95,6 +97,8 @@ namespace DerivSmartBotDesktop.ViewModels
             MinConfidenceForDynamicStake = _initial.MinConfidenceForDynamicStake;
             MinRegimeScoreForDynamicStake = _initial.MinRegimeScoreForDynamicStake;
             MinHeatForDynamicStake = _initial.MinHeatForDynamicStake;
+            EnableProposalEvGate = _initial.EnableProposalEvGate;
+            MinExpectedValue = _initial.MinExpectedValue;
             IsDemo = _initial.IsDemo;
             ForwardTestEnabled = _initial.ForwardTestEnabled;
             RelaxEnvironmentForTesting = _initial.RelaxEnvironmentForTesting;
@@ -311,6 +315,18 @@ namespace DerivSmartBotDesktop.ViewModels
             set { _minHeatForDynamicStake = value; OnPropertyChanged(); }
         }
 
+        public bool EnableProposalEvGate
+        {
+            get => _enableProposalEvGate;
+            set { _enableProposalEvGate = value; OnPropertyChanged(); }
+        }
+
+        public double MinExpectedValue
+        {
+            get => _minExpectedValue;
+            set { _minExpectedValue = value; OnPropertyChanged(); }
+        }
+
         public bool IsDemo
         {
             get => _isDemo;
@@ -410,6 +426,8 @@ namespace DerivSmartBotDesktop.ViewModels
                 MinConfidenceForDynamicStake = MinConfidenceForDynamicStake,
                 MinRegimeScoreForDynamicStake = MinRegimeScoreForDynamicStake,
                 MinHeatForDynamicStake = MinHeatForDynamicStake,
+                EnableProposalEvGate = EnableProposalEvGate,
+                MinExpectedValue = MinExpectedValue,
                 IsDemo = IsDemo,
                 ForwardTestEnabled = ForwardTestEnabled,
                 RelaxEnvironmentForTesting = RelaxEnvironmentForTesting

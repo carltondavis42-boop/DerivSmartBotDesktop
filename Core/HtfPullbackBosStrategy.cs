@@ -117,6 +117,11 @@ namespace DerivSmartBotDesktop.Core
             public DateTime? LastH1Processed;
             public DateTime? LastM15Processed;
             public DateTime? LastM5Processed;
+            public string LastGate { get; set; } = "INIT";
+            public bool H1Ready { get; set; }
+            public bool M15Ready { get; set; }
+            public bool M5Ready { get; set; }
+            public DateTime LastUpdated { get; set; } = DateTime.MinValue;
 
             public readonly List<Pivot> PivotHighs = new();
             public readonly List<Pivot> PivotLows = new();
@@ -174,6 +179,7 @@ namespace DerivSmartBotDesktop.Core
 
             var state = GetState(tick.Symbol);
             UpdateBars(state, tick);
+            UpdateReadiness(state);
 
             RefreshCooldown(state, tick.Time);
             UpdateBiasIfH1Closed(state);
@@ -181,19 +187,44 @@ namespace DerivSmartBotDesktop.Core
 
             UpdateM5Pivots(state);
 
-            if (state.State != FsmState.Armed)
+            if (!state.H1Ready || !state.M15Ready || !state.M5Ready)
+            {
+                SetGate(state, "DATA_WARMUP");
                 return NoSignal();
+            }
+
+            if (state.State != FsmState.Armed)
+            {
+                SetGate(state, state.State switch
+                {
+                    FsmState.Idle => "BIAS_IDLE",
+                    FsmState.BiasOk => "WAIT_PULLBACK",
+                    FsmState.Pullback => "WAIT_PULLBACK",
+                    FsmState.Cooldown => "COOLDOWN",
+                    _ => "WAIT_ARMED"
+                });
+                return NoSignal();
+            }
 
             if (state.CooldownUntil.HasValue && tick.Time < state.CooldownUntil.Value)
+            {
+                SetGate(state, "COOLDOWN");
                 return NoSignal();
+            }
 
             var atr = ComputeAtr(state.M15Bars, _atrPeriod);
             if (atr <= 0)
+            {
+                SetGate(state, "ATR_NOT_READY");
                 return NoSignal();
+            }
 
             var lastM5 = state.M5Bars.LastOrDefault();
             if (lastM5 == null)
+            {
+                SetGate(state, "M5_NOT_READY");
                 return NoSignal();
+            }
 
             double bosBuffer = _bosBufferAtr * atr;
             double bodyPct = ComputeBodyPct(lastM5);
@@ -207,9 +238,13 @@ namespace DerivSmartBotDesktop.Core
                 if (lastM5.Close > pivot.Price + bosBuffer && bodyPct >= _minBodyPct)
                 {
                     if (!StopDistanceOk(atr))
+                    {
+                        SetGate(state, "STOP_DISTANCE");
                         return NoSignal();
+                    }
 
                     EnterCooldown(state, tick.Time);
+                    SetGate(state, "BOS_LONG");
                     return BuildDecision(TradeSignal.Buy, ComputeConfidence(state, atr, bodyPct));
                 }
             }
@@ -222,13 +257,18 @@ namespace DerivSmartBotDesktop.Core
                 if (lastM5.Close < pivot.Price - bosBuffer && bodyPct >= _minBodyPct)
                 {
                     if (!StopDistanceOk(atr))
+                    {
+                        SetGate(state, "STOP_DISTANCE");
                         return NoSignal();
+                    }
 
                     EnterCooldown(state, tick.Time);
+                    SetGate(state, "BOS_SHORT");
                     return BuildDecision(TradeSignal.Sell, ComputeConfidence(state, atr, bodyPct));
                 }
             }
 
+            SetGate(state, "WAIT_BOS");
             return NoSignal();
         }
 
@@ -323,6 +363,7 @@ namespace DerivSmartBotDesktop.Core
                 state.Bias = bias;
                 state.State = bias == BiasDirection.None ? FsmState.Idle : FsmState.BiasOk;
                 state.PullbackStart = null;
+                SetGate(state, bias == BiasDirection.None ? "BIAS_NONE" : "BIAS_OK");
             }
         }
 
@@ -366,6 +407,7 @@ namespace DerivSmartBotDesktop.Core
             {
                 state.State = FsmState.Idle;
                 state.PullbackStart = null;
+                SetGate(state, "REGIME_FILTER");
                 return;
             }
 
@@ -373,11 +415,13 @@ namespace DerivSmartBotDesktop.Core
             {
                 state.State = FsmState.Armed;
                 state.PullbackStart ??= last.Start;
+                SetGate(state, "ARMED");
                 return;
             }
 
             state.State = FsmState.BiasOk;
             state.PullbackStart = null;
+            SetGate(state, "WAIT_PULLBACK");
         }
 
         private void UpdateM5Pivots(SymbolState state)
@@ -558,6 +602,26 @@ namespace DerivSmartBotDesktop.Core
 
             state.CooldownUntil = null;
             state.State = state.Bias == BiasDirection.None ? FsmState.Idle : FsmState.BiasOk;
+            state.LastGate = "COOLDOWN_END";
+        }
+
+        private void UpdateReadiness(SymbolState state)
+        {
+            state.H1Ready = state.H1Bars.Count >= _minH1Bars;
+            state.M15Ready = state.M15Bars.Count >= _minM15Bars;
+            state.M5Ready = state.M5Bars.Count >= (_pivotLookback * 2 + 1);
+        }
+
+        private static void SetGate(SymbolState state, string gate)
+        {
+            state.LastGate = gate;
+            state.LastUpdated = DateTime.Now;
+        }
+
+        public string GetDiagnostics(string symbol)
+        {
+            var state = GetState(symbol);
+            return $"HTF_BOS gate={state.LastGate} H1={state.H1Bars.Count} M15={state.M15Bars.Count} M5={state.M5Bars.Count}";
         }
 
         private static double ComputeAtr(IReadOnlyList<TfBar> bars, int period)

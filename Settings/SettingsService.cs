@@ -43,6 +43,8 @@ namespace DerivSmartBotDesktop.Settings
             public double MinConfidenceForDynamicStake { get; set; } = -1;
             public double MinRegimeScoreForDynamicStake { get; set; } = -1;
             public double MinHeatForDynamicStake { get; set; } = -1;
+            public bool EnableProposalEvGate { get; set; } = false;
+            public double MinExpectedValue { get; set; } = -1;
             public bool IsDemo { get; set; } = true;
             public bool ForwardTestEnabled { get; set; } = false;
             public bool RelaxEnvironmentForTesting { get; set; } = false;
@@ -116,6 +118,8 @@ namespace DerivSmartBotDesktop.Settings
                     MinConfidenceForDynamicStake = store.MinConfidenceForDynamicStake,
                     MinRegimeScoreForDynamicStake = store.MinRegimeScoreForDynamicStake,
                     MinHeatForDynamicStake = store.MinHeatForDynamicStake,
+                    EnableProposalEvGate = store.EnableProposalEvGate,
+                    MinExpectedValue = store.MinExpectedValue,
                     IsDemo = store.IsDemo,
                     ForwardTestEnabled = store.ForwardTestEnabled,
                     RelaxEnvironmentForTesting = store.RelaxEnvironmentForTesting
@@ -178,6 +182,8 @@ namespace DerivSmartBotDesktop.Settings
                     MinConfidenceForDynamicStake = settings.MinConfidenceForDynamicStake,
                     MinRegimeScoreForDynamicStake = settings.MinRegimeScoreForDynamicStake,
                     MinHeatForDynamicStake = settings.MinHeatForDynamicStake,
+                    EnableProposalEvGate = settings.EnableProposalEvGate,
+                    MinExpectedValue = settings.MinExpectedValue,
                     IsDemo = settings.IsDemo,
                     ForwardTestEnabled = settings.ForwardTestEnabled,
                     RelaxEnvironmentForTesting = settings.RelaxEnvironmentForTesting,

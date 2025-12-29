@@ -133,6 +133,9 @@
                                               Margin="0,6,0,0"/>
                         <TextBlock Text="{Binding Diagnostics.AutoTrainStatus}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
                         <TextBlock Text="{Binding Diagnostics.LastModelUpdate, StringFormat=Last model update: {0}}" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Text="{Binding Diagnostics.StrategyDiagnostics, StringFormat=Strategy gate: {0}}"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   TextWrapping="Wrap"/>
                     </StackPanel>
                 </Border>
 

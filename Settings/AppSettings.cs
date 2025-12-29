@@ -38,6 +38,8 @@
         public double MinConfidenceForDynamicStake { get; set; } = -1;
         public double MinRegimeScoreForDynamicStake { get; set; } = -1;
         public double MinHeatForDynamicStake { get; set; } = -1;
+        public bool EnableProposalEvGate { get; set; } = false;
+        public double MinExpectedValue { get; set; } = -1;
 
         // ✅ NEW: used by SettingsViewModel.cs
         // True  = demo account

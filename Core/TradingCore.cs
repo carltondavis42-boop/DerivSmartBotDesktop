@@ -1709,6 +1709,8 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
         public int HighHeatRotationIntervalSeconds { get; set; } = 60;
         public double RotationScoreDelta { get; set; } = 8.0;
         public double RotationScoreDeltaHighHeat { get; set; } = 3.0;
+        public bool EnableProposalEvGate { get; set; } = false;
+        public double MinExpectedValue { get; set; } = 0.0;
 
 
         public TimeSpan? SessionStartLocal { get; set; } = null;
@@ -1902,7 +1904,9 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
                             HighHeatRotationThreshold = 70.0,
                             HighHeatRotationIntervalSeconds = 90,
                             RotationScoreDelta = 12.0,
-                            RotationScoreDeltaHighHeat = 4.0
+                            RotationScoreDeltaHighHeat = 4.0,
+                            EnableProposalEvGate = true,
+                            MinExpectedValue = 0.0
                         }
                     };
                 case BotProfile.Conservative:
@@ -1943,7 +1947,9 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
                             HighHeatRotationThreshold = 65.0,
                             HighHeatRotationIntervalSeconds = 60,
                             RotationScoreDelta = 10.0,
-                            RotationScoreDeltaHighHeat = 3.0
+                            RotationScoreDeltaHighHeat = 3.0,
+                            EnableProposalEvGate = false,
+                            MinExpectedValue = 0.0
                         }
                     };
                 case BotProfile.Aggressive:
@@ -1983,7 +1989,9 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
                             HighHeatRotationThreshold = 55.0,
                             HighHeatRotationIntervalSeconds = 45,
                             RotationScoreDelta = 6.0,
-                            RotationScoreDeltaHighHeat = 2.0
+                            RotationScoreDeltaHighHeat = 2.0,
+                            EnableProposalEvGate = false,
+                            MinExpectedValue = 0.0
                         }
                     };
                 case BotProfile.Balanced:
@@ -2025,7 +2033,9 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
                             HighHeatRotationThreshold = 60.0,
                             HighHeatRotationIntervalSeconds = 60,
                             RotationScoreDelta = 8.0,
-                            RotationScoreDeltaHighHeat = 3.0
+                            RotationScoreDeltaHighHeat = 3.0,
+                            EnableProposalEvGate = false,
+                            MinExpectedValue = 0.0
                         }
                     };
             }
@@ -2290,6 +2300,7 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
         private readonly List<TradeRecord> _tradeHistory = new();
         private readonly Dictionary<Guid, TradeRecord> _openTrades = new();
         private readonly Dictionary<Guid, ForwardTestTrade> _forwardTrades = new();
+        private readonly Dictionary<string, DateTime> _strategyLastTradeTime = new(StringComparer.OrdinalIgnoreCase);
 
         private sealed class ForwardTestTrade
         {
@@ -2735,6 +2746,23 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
             RaiseBotEvent("Strategies updated.");
         }
 
+        public string GetStrategyDiagnostics(string? symbol)
+        {
+            if (string.IsNullOrWhiteSpace(symbol))
+                return "-";
+
+            lock (_stateLock)
+            {
+                foreach (var strategy in _strategies)
+                {
+                    if (strategy is HtfPullbackBosStrategy htf)
+                        return htf.GetDiagnostics(symbol);
+                }
+            }
+
+            return "-";
+        }
+
         private void OnBalanceUpdated(double bal)
         {
             if (_sessionStartBalance <= 0)
@@ -2864,6 +2892,7 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
             }
 
             double composite = heatWeight * heat + perfWeight * perfComponent + regimeWeight * regimeComponent;
+            composite += ComputeStrategyFitBonus(stats);
             composite *= symbolBias;
 
             if (heat >= _rules.HighHeatRotationThreshold && stats.LastRegimeScore < _rules.MinRegimeScoreToTrade)
@@ -2879,6 +2908,33 @@ public class VolatilityFilteredStrategy : ITradingStrategy, ITradeDurationProvid
             }
 
             return composite;
+        }
+
+        private double ComputeStrategyFitBonus(SymbolPerformanceStats stats)
+        {
+            if (stats == null)
+                return 0.0;
+
+            var profile = StrategyTagRegistry.GetProfile(ActiveStrategyName);
+            if (profile == null)
+                return 0.0;
+
+            double bonus = 0.0;
+            if (profile.PreferredRegimes.Contains(stats.LastRegime))
+                bonus += profile.MatchBonus;
+            else
+                bonus -= profile.MismatchPenalty;
+
+            double heat = stats.LastHeat;
+            if (heat < profile.MinHeat || heat > profile.MaxHeat)
+                bonus -= 4.0;
+            else
+                bonus += 2.0;
+
+            if (stats.LastRegimeScore > 0 && stats.LastRegimeScore < _rules.MinRegimeScoreToTrade)
+                bonus -= 2.0;
+
+            return Math.Clamp(bonus, -20.0, 20.0);
         }
 
         private void TryRotateActiveSymbol(Tick latestTick)
@@ -3083,12 +3139,6 @@ private void OnTickReceived(Tick tick)
                     effectiveCooldown += TimeSpan.FromSeconds(extraSeconds);
             }
 
-            if ((now - _lastTradeTime) < effectiveCooldown)
-            {
-                SetSkipReason("COOLDOWN", "Trade cooldown has not yet expired.");
-                return;
-            }
-
             _tradeTimes.RemoveAll(t => (now - t) > TimeSpan.FromHours(1));
 
             // If MaxTradesPerHour <= 0, treat as "no per-hour limit".
@@ -3162,7 +3212,16 @@ private void OnTickReceived(Tick tick)
                 EnsureDecisionDuration(dec, strategy);
 
                 if (dec.Signal != TradeSignal.None && dec.Confidence > 0)
+                {
+                    if (IsStrategyOnCooldown(dec.StrategyName, now, effectiveCooldown))
+                    {
+                        SetSkipReason("STRATEGY_COOLDOWN",
+                            $"Strategy cooldown has not yet expired for {dec.StrategyName}.");
+                        continue;
+                    }
+
                     decisions.Add(dec);
+                }
             }
 
 
@@ -3525,6 +3584,17 @@ private void OnTickReceived(Tick tick)
             return false;
         }
 
+        private bool IsStrategyOnCooldown(string? strategyName, DateTime now, TimeSpan cooldown)
+        {
+            if (string.IsNullOrWhiteSpace(strategyName))
+                return false;
+
+            if (!_strategyLastTradeTime.TryGetValue(strategyName, out var last))
+                return false;
+
+            return (now - last) < cooldown;
+        }
+
         private async void ExecuteTrade(
             Tick tick,
             StrategyDecision decision,
@@ -3619,6 +3689,13 @@ private void OnTickReceived(Tick tick)
                     $"but regime heat={MarketHeatScore:F1}; proceeding cautiously.");
             }
 
+            if (_rules.EnableProposalEvGate)
+            {
+                bool evOk = await CheckProposalExpectedValueAsync(tick, decision, stake);
+                if (!evOk)
+                    return;
+            }
+
             Guid tradeId;
             string dirText;
 
@@ -3626,6 +3703,8 @@ private void OnTickReceived(Tick tick)
             lock (_stateLock)
             {
                 _lastTradeTime = now;
+                if (!string.IsNullOrWhiteSpace(decision.StrategyName))
+                    _strategyLastTradeTime[decision.StrategyName] = now;
 
                 _tradeTimes.RemoveAll(t => (now - t) > TimeSpan.FromHours(1));
                 _tradeTimes.Add(now);
@@ -3848,6 +3927,51 @@ private void OnTickReceived(Tick tick)
                 return (quote.Payout.Value - quote.AskPrice.Value) / stake;
 
             return 0.0;
+        }
+
+        private async Task<bool> CheckProposalExpectedValueAsync(Tick tick, StrategyDecision decision, double stake)
+        {
+            var proposalProvider = _deriv as IProposalProvider;
+            if (proposalProvider == null)
+                return true;
+
+            try
+            {
+                string contractType = decision.Signal == TradeSignal.Buy ? "CALL" : "PUT";
+                var request = new ProposalRequest
+                {
+                    Symbol = tick.Symbol,
+                    ContractType = contractType,
+                    Stake = stake,
+                    Duration = decision.Duration,
+                    DurationUnit = decision.DurationUnit,
+                    Currency = string.IsNullOrWhiteSpace(_deriv.Currency) ? "USD" : _deriv.Currency
+                };
+
+                var quote = await proposalProvider.GetProposalAsync(request).ConfigureAwait(false);
+                double payoutMultiplier = ExtractProposalMultiplier(quote, stake);
+                if (payoutMultiplier <= 0)
+                    return true;
+
+                double pWin = decision.EdgeProbability ?? decision.Confidence;
+                pWin = Math.Clamp(pWin, 0.05, 0.95);
+
+                double ev = (pWin * stake * payoutMultiplier) - ((1.0 - pWin) * stake);
+                if (ev < _rules.MinExpectedValue)
+                {
+                    SetSkipReason("NEGATIVE_EXPECTED_VALUE",
+                        $"Proposal EV {ev:F2} below min {_rules.MinExpectedValue:F2} (pWin={pWin:F2}, payout x{payoutMultiplier:F2}).");
+                    RaiseBotEvent(
+                        $"[NEGATIVE_EXPECTED_VALUE] Blocked trade: EV={ev:F2}, pWin={pWin:F2}, payout x{payoutMultiplier:F2}.");
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                RaiseBotEvent($"[EV_GATE_WARN] Proposal EV gate failed: {ex.Message}");
+            }
+
+            return true;
         }
 
         private void OnContractFinished(string strategyName, Guid tradeId, double profit)

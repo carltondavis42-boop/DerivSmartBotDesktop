@@ -125,6 +125,10 @@
                     <TextBox Text="{Binding MinRegimeScoreForDynamicStake, UpdateSourceTrigger=PropertyChanged}"/>
                     <TextBlock Text="Min heat for dynamic stake" Margin="0,8,0,4"/>
                     <TextBox Text="{Binding MinHeatForDynamicStake, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Proposal EV gate enabled" Margin="0,12,0,4"/>
+                    <CheckBox Content="Enable proposal expected value gate" IsChecked="{Binding EnableProposalEvGate}"/>
+                    <TextBlock Text="Min expected value ($)" Margin="0,8,0,4"/>
+                    <TextBox Text="{Binding MinExpectedValue, UpdateSourceTrigger=PropertyChanged}"/>
 
                     <TextBlock Text="Appearance" Margin="0,16,0,4" FontWeight="SemiBold"/>
                     <ComboBox SelectedItem="{Binding SelectedTheme}" ItemsSource="{Binding ThemeOptions}" Width="140"/>
