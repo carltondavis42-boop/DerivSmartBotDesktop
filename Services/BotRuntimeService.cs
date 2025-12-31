@@ -71,11 +71,11 @@ namespace DerivSmartBotDesktop.Services
             _ = SubscribeSymbolsAsync(new[] { _settings.Symbol });
 
             var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            var trainScript = System.IO.Path.Combine(baseDir, "train_models.py");
+            var trainScript = ResolveTrainScriptPath(baseDir);
             var logDir = string.IsNullOrWhiteSpace(_settings.TradeLogDirectory)
                 ? DefaultTradeLogDir
                 : _settings.TradeLogDirectory.Trim();
-            var mlDir = @"C:\Users\Ian\DerivSmartBotDesktop\Data\ML";
+            var mlDir = ResolveMlDir(baseDir, logDir);
             var minSamplesPerStrategy = _settings.MinSamplesPerStrategy > 0
                 ? _settings.MinSamplesPerStrategy
                 : DefaultMinSamplesPerStrategy;
@@ -108,7 +108,7 @@ namespace DerivSmartBotDesktop.Services
             IStrategySelector strategySelector;
             try
             {
-                string edgeModelPath = Path.Combine(baseDir, "Data", "ML", "edge-linear-v1.json");
+                string edgeModelPath = Path.Combine(mlDir, "edge-linear-v1.json");
                 if (File.Exists(edgeModelPath))
                 {
                     var edgeModel = new JsonStrategyEdgeModel(edgeModelPath);
@@ -127,7 +127,7 @@ namespace DerivSmartBotDesktop.Services
             IMarketRegimeClassifier regimeClassifier;
             try
             {
-                string modelPath = Path.Combine(baseDir, "Data", "ML", "regime-linear-v1.json");
+                string modelPath = Path.Combine(mlDir, "regime-linear-v1.json");
                 if (File.Exists(modelPath))
                 {
                     var mlModel = new JsonRegimeModel(modelPath);
@@ -858,8 +858,12 @@ namespace DerivSmartBotDesktop.Services
         private DateTime GetLatestModelWriteUtc()
         {
             var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            var edgePath = Path.Combine(baseDir, "Data", "ML", "edge-linear-v1.json");
-            var regimePath = Path.Combine(baseDir, "Data", "ML", "regime-linear-v1.json");
+            var logDir = string.IsNullOrWhiteSpace(_settings?.TradeLogDirectory)
+                ? DefaultTradeLogDir
+                : _settings.TradeLogDirectory.Trim();
+            var mlDir = ResolveMlDir(baseDir, logDir);
+            var edgePath = Path.Combine(mlDir, "edge-linear-v1.json");
+            var regimePath = Path.Combine(mlDir, "regime-linear-v1.json");
 
             var latest = DateTime.MinValue;
             if (File.Exists(edgePath))
@@ -945,8 +949,12 @@ namespace DerivSmartBotDesktop.Services
                 return;
 
             var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            var edgePath = Path.Combine(baseDir, "Data", "ML", "edge-linear-v1.json");
-            var regimePath = Path.Combine(baseDir, "Data", "ML", "regime-linear-v1.json");
+            var logDir = string.IsNullOrWhiteSpace(_settings?.TradeLogDirectory)
+                ? DefaultTradeLogDir
+                : _settings.TradeLogDirectory.Trim();
+            var mlDir = ResolveMlDir(baseDir, logDir);
+            var edgePath = Path.Combine(mlDir, "edge-linear-v1.json");
+            var regimePath = Path.Combine(mlDir, "regime-linear-v1.json");
 
             IStrategySelector? selector = null;
             IMarketRegimeClassifier? classifier = null;
@@ -984,6 +992,54 @@ namespace DerivSmartBotDesktop.Services
 
             _lastModelLoadUtc = latest;
             OnBotEvent("[AutoTrain] Models reloaded.");
+        }
+
+        private static string ResolveMlDir(string baseDir, string logDir)
+        {
+            if (!string.IsNullOrWhiteSpace(logDir))
+            {
+                try
+                {
+                    var parent = Directory.GetParent(logDir.Trim());
+                    if (parent != null)
+                    {
+                        var candidate = Path.Combine(parent.FullName, "ML");
+                        if (Directory.Exists(candidate))
+                            return candidate;
+                    }
+                }
+                catch
+                {
+                    // ignore
+                }
+            }
+
+            var baseCandidate = Path.Combine(baseDir, "Data", "ML");
+            if (Directory.Exists(baseCandidate))
+                return baseCandidate;
+
+            var fallback = @"C:\Users\Ian\DerivSmartBotDesktop\Data\ML";
+            return fallback;
+        }
+
+        private static string ResolveTrainScriptPath(string baseDir)
+        {
+            var candidates = new[]
+            {
+                Path.Combine(baseDir, "train_models.py"),
+                Path.Combine(baseDir, "..", "..", "..", "train_models.py"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    "DerivSmartBotDesktop", "train_models.py")
+            };
+
+            foreach (var candidate in candidates)
+            {
+                var full = Path.GetFullPath(candidate);
+                if (File.Exists(full))
+                    return full;
+            }
+
+            return Path.Combine(baseDir, "train_models.py");
         }
 
         private static List<TradeRowViewModel> BuildMockTrades()
