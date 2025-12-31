@@ -500,7 +500,8 @@ namespace DerivSmartBotDesktop.Deriv
             Currency = authObj.TryGetProperty("currency", out var curProp) ? curProp.GetString() : null;
 
             // Deriv sometimes includes "balance" directly in authorize (virtual account, etc.)
-            if (authObj.TryGetProperty("balance", out var balProp) && balProp.TryGetDouble(out double authBalance))
+            if (authObj.TryGetProperty("balance", out var balProp) &&
+                TryGetDoubleFlexible(balProp, out double authBalance))
             {
                 _balance = authBalance;
                 BalanceUpdated?.Invoke(_balance);
@@ -545,7 +546,8 @@ namespace DerivSmartBotDesktop.Deriv
             if (!root.TryGetProperty("balance", out var balObj))
                 return;
 
-            if (balObj.TryGetProperty("balance", out var bProp) && bProp.TryGetDouble(out double balValue))
+            if (balObj.TryGetProperty("balance", out var bProp) &&
+                TryGetDoubleFlexible(bProp, out double balValue))
             {
                 _balance = balValue;
                 BalanceUpdated?.Invoke(_balance);
@@ -616,6 +618,22 @@ namespace DerivSmartBotDesktop.Deriv
         private void Log(string msg)
         {
             LogMessage?.Invoke(msg);
+        }
+
+        private static bool TryGetDoubleFlexible(JsonElement element, out double value)
+        {
+            if (element.ValueKind == JsonValueKind.Number && element.TryGetDouble(out value))
+                return true;
+
+            if (element.ValueKind == JsonValueKind.String)
+            {
+                var text = element.GetString();
+                return double.TryParse(text, System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out value);
+            }
+
+            value = 0.0;
+            return false;
         }
 
         public void Dispose()
