@@ -569,14 +569,18 @@ namespace DerivSmartBotDesktop.Services
 
         private BotSnapshot BuildSnapshot()
         {
+            var balance = _controller?.Balance
+                ?? _client?.Balance
+                ?? 0;
+
             var snapshot = new BotSnapshot
             {
                 Timestamp = DateTime.Now,
                 IsConnected = _controller?.IsConnected ?? false,
                 IsRunning = _controller?.IsRunning ?? false,
                 ModeBadgeText = _settings.IsDemo ? "DEMO" : "LIVE",
-                Balance = _controller?.Balance ?? 0,
-                Equity = _controller?.Balance ?? 0,
+                Balance = balance,
+                Equity = balance,
                 TodaysPL = _controller?.TodaysPL ?? 0,
                 ActiveSymbol = _controller?.ActiveSymbol ?? "-",
                 ActiveStrategy = _controller?.ActiveStrategyName ?? "-",
