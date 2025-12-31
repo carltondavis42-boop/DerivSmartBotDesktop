@@ -32,6 +32,7 @@ namespace DerivSmartBotDesktop.Services
         private double _equityPeak;
         private bool _useMockData;
         private DateTime _lastSnapshot = DateTime.MinValue;
+        private DateTime _lastBalanceRequestUtc = DateTime.MinValue;
         private RiskSettings? _riskSettings;
         private BotRules? _botRules;
         private BotProfile _currentProfile = BotProfile.HighQuality;
@@ -563,8 +564,33 @@ namespace DerivSmartBotDesktop.Services
 
             _lastSnapshot = DateTime.UtcNow;
 
+            EnsureBalanceRequested();
+
             var snapshot = _useMockData ? BuildMockSnapshot() : BuildSnapshot();
             SnapshotAvailable?.Invoke(snapshot);
+        }
+
+        private void EnsureBalanceRequested()
+        {
+            if (_useMockData)
+                return;
+
+            var client = _client;
+            if (client == null || !client.IsConnected || !client.IsAuthorized)
+                return;
+
+            var balance = _controller?.Balance
+                ?? client.Balance
+                ?? 0;
+
+            if (balance > 0)
+                return;
+
+            if ((DateTime.UtcNow - _lastBalanceRequestUtc).TotalSeconds < 30)
+                return;
+
+            _lastBalanceRequestUtc = DateTime.UtcNow;
+            _ = client.RequestBalanceAsync();
         }
 
         private BotSnapshot BuildSnapshot()
