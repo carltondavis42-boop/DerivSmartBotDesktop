@@ -24,6 +24,7 @@ namespace DerivSmartBotDesktop.Services
         private DerivWebSocketClient? _client;
         private AppSettings _settings = new();
         private Timer? _snapshotTimer;
+        private Timer? _reconnectWatchdog;
         private readonly List<LogItemViewModel> _logs = new();
         private readonly List<AlertItemViewModel> _alerts = new();
         private readonly List<double> _equitySeries = new();
@@ -172,6 +173,7 @@ namespace DerivSmartBotDesktop.Services
             PersistEffectiveConfig(profileCfg, watchlist);
 
             _snapshotTimer ??= new Timer(_ => PublishSnapshot(), null, 0, 300);
+            _reconnectWatchdog ??= new Timer(_ => WatchReconnect(), null, 2000, 5000);
         }
 
         public void Start()
@@ -183,6 +185,27 @@ namespace DerivSmartBotDesktop.Services
         public void Stop()
         {
             _controller?.Stop();
+        }
+
+        private void WatchReconnect()
+        {
+            if (_useMockData)
+                return;
+
+            var client = _client;
+            if (client == null)
+                return;
+
+            if (client.IsConnected && client.IsAuthorized)
+                return;
+
+            if (_settings == null || !_settings.IsValid)
+                return;
+
+            if (Interlocked.CompareExchange(ref _reconnectInProgress, 1, 1) == 1)
+                return;
+
+            _ = HandleReconnectAsync("Watchdog: client disconnected or unauthorized.");
         }
 
         public void ClearAutoPause()

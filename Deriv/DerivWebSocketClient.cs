@@ -272,6 +272,7 @@ namespace DerivSmartBotDesktop.Deriv
                         {
                             var reason = $"WebSocket closed by server: {result.CloseStatus} {result.CloseStatusDescription}";
                             Log(reason);
+                            _authorized = false;
                             try
                             {
                                 await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "OK", CancellationToken.None);
@@ -306,6 +307,7 @@ namespace DerivSmartBotDesktop.Deriv
                 {
                     var msg = $"Receive loop error: {ex.Message}";
                     Log(msg);
+                    _authorized = false;
                     // Inform listeners (MainWindow) of unexpected disconnect
                     ConnectionClosed?.Invoke(msg);
                     // If something fatal happens, break and let the app decide what to do
