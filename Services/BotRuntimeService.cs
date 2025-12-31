@@ -581,7 +581,7 @@ namespace DerivSmartBotDesktop.Services
 
             var balance = _controller?.Balance
                 ?? client.Balance
-                ?? 0;
+                ?? 0.0;
 
             if (balance > 0)
                 return;
