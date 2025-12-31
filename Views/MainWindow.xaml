@@ -115,9 +115,14 @@
                 </DockPanel>
             </Border>
 
-            <StackPanel Grid.Column="1">
-                <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
-                    <StackPanel>
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Border Grid.Row="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
                         <TextBlock Text="Market conditions" FontWeight="SemiBold"/>
                         <TextBlock Text="{Binding ActiveSymbol}" Margin="0,8,0,0"/>
                         <TextBlock Text="{Binding MarketRegime}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
@@ -136,10 +141,11 @@
                         <TextBlock Text="{Binding Diagnostics.StrategyDiagnostics, StringFormat=Strategy gate: {0}}"
                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                    TextWrapping="Wrap"/>
-                    </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
                 </Border>
 
-                <Border Style="{StaticResource CardBorderStyle}">
+                <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}">
                     <StackPanel>
                         <TextBlock Text="Rules &amp; auto-pause" FontWeight="SemiBold"/>
                         <TextBlock Text="{Binding RiskState, StringFormat=State: {0}}" Foreground="{DynamicResource TextSecondaryBrush}"/>
@@ -149,7 +155,7 @@
                         <TextBlock Text="{Binding StakeModel, StringFormat=Stake Model: {0}}" Foreground="{DynamicResource TextSecondaryBrush}"/>
                     </StackPanel>
                 </Border>
-            </StackPanel>
+            </Grid>
         </Grid>
 
         <Grid Grid.Row="3" Margin="0,12,0,0">
