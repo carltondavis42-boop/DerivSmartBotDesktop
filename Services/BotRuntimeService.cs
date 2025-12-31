@@ -579,9 +579,9 @@ namespace DerivSmartBotDesktop.Services
             if (client == null || !client.IsConnected || !client.IsAuthorized)
                 return;
 
-            var balance = _controller != null
-                ? _controller.Balance
-                : client.Balance;
+            var balance = _controller?.Balance ?? 0.0;
+            if (balance <= 0 && client != null)
+                balance = client.Balance;
 
             if (balance > 0)
                 return;
@@ -595,11 +595,9 @@ namespace DerivSmartBotDesktop.Services
 
         private BotSnapshot BuildSnapshot()
         {
-            var balance = _controller != null
-                ? _controller.Balance
-                : _client != null
-                    ? _client.Balance
-                    : 0.0;
+            var balance = _controller?.Balance ?? 0.0;
+            if (balance <= 0 && _client != null)
+                balance = _client.Balance;
 
             var snapshot = new BotSnapshot
             {
